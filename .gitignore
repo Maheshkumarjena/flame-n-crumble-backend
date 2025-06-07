@@ -1,0 +1,84 @@
+# Node.js
+node_modules/
+npm-debug.log
+.npm/
+.yarn/
+/yarn-error.log
+/pnpm-debug.log
+/pnpm-lock.yaml
+
+# Runtime data
+*.log
+*.sqlite
+*.sqlite3
+/data/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.*.local
+.env.*
+
+# Uploads
+/public/uploads/
+/uploads/
+
+# Build artifacts
+/dist/
+/build/
+/out/
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.DS_Store # macOS specific
+Thumbs.db # Windows specific
+
+# OS generated files
+.DS_Store
+.Trash
+ehthumbs.db
+Icon?
+desktop.ini
+
+# Test artifacts
+/coverage/
+.nyc_output/
+
+# Editor specific files
+*.swp
+*.swo
+
+# Docker
+.dockerignore
+
+# pm2 (process manager) files
+*.pm2
+
+# Log files
+logs/
+*.log
+
+# Temp files
+*.tmp
+temp/
+
+# Configuration files that might contain sensitive info or vary by environment
+# (uncomment and adjust if you have specific config files you want to ignore)
+# config/development.json
+# config/production.json
+
+# If using specific databases, add their specific ignore patterns
+# MongoDB backup files
+# dump/
+
+# PostgreSQL specific files
+# pgdata/
+
+# Redis specific files
+# dump.rdb
