@@ -9,8 +9,13 @@ import { env } from './config/env.js';
 import errorHandler from './middleware/error.js';
 import authRoutes from './routes/authRoutes.js';
 import productRoutes from './routes/productRoutes.js';
+import cartRoutes from './routes/cartRoutes.js';
+import wishlistRoutes from './routes/wishlistRoutes.js'; // Assuming you have a wishlistRoutes.js
+import orderRoutes from './routes/orderRoutes.js'; // Assuming you have an orderRoutes.js
+import adminRoutes from './routes/adminRoutes.js'; // Assuming you have an adminRoutes.js
 
 const app = express();
+
 
 // Middleware
 app.use(helmet());
@@ -26,6 +31,10 @@ connectDB();
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
+app.use('/api/cart', cartRoutes);
+app.use('/api/wishlist', wishlistRoutes); // Assuming you have a wishlistRoutes.js
+app.use('/api/orders', orderRoutes); // Assuming you have an orderRoutes.js
+app.use('/api/admin', adminRoutes); // Assuming you have an adminRoutes.js
 
 // Error Handling
 app.use(errorHandler);

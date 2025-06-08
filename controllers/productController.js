@@ -18,16 +18,5 @@ export const getProducts = async (req, res, next) => {
   }
 };
 
-export const addProduct = async (req, res, next) => {
-  try {
-    const product = new Product(req.body);
-    await product.save();
-    await redisClient.del(PRODUCTS_CACHE_KEY); // Invalidate cache
-    res.status(201).json(product);
-  } catch (err) {
-    next(err);
-  }
-};
 
-// (Similarly, implement cartController.js, wishlistController.js, etc.)
 
