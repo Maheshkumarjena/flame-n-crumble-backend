@@ -6,6 +6,11 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   role: { type: String, enum: ['user', 'admin'], default: 'user' },
+   phone: {
+    type: String,
+    trim: true,
+    // You might add validation here if needed
+  },
   isVerified: { type: Boolean, default: false }, // New field: tracks if email is verified
   verificationToken: String, // New field: stores hashed verification token
   verificationTokenExpires: Date, // New field: stores expiry date for the token
