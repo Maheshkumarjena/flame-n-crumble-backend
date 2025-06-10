@@ -1,6 +1,6 @@
 // routes/addressRoutes.js
 import express from 'express';
-import { protect } from '../middleware/authMiddleware.js'; // Assuming you have this middleware
+import { authenticate } from '../middleware/auth.js';
 import { 
   getUserAddresses,
   createAddress,
@@ -11,8 +11,8 @@ import {
 
 const router = express.Router();
 
-// All address routes should be protected
-router.use(protect); // Applies 'protect' middleware to all routes below this line
+// All address routes should be protected 
+router.use(authenticate); // Applies 'protect' middleware to all routes below this line 
 
 router.route('/')
   .get(getUserAddresses) // GET /api/addresses - Get all addresses for user

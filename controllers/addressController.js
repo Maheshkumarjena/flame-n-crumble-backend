@@ -2,7 +2,8 @@
 import Address from '../models/Address.js';
 import User from '../models/User.js'; // Might need to interact with User for default address logic
 import logger from '../utils/logger.js';
-import { CustomError } from '../middleware/errorHandler.js'; // Assuming you have a CustomError for consistency
+// impoort error errorHandler from '../utils/errorHandler.js';
+import errorHandler from '../middleware/error.js';
 
 /**
  * @desc Get all addresses for the logged-in user
@@ -16,7 +17,7 @@ export const getUserAddresses = async (req, res, next) => {
     res.status(200).json({ addresses });
   } catch (error) {
     logger.error(`Error getting addresses for user ${req.userId}:`, error);
-    next(new CustomError('Failed to fetch addresses', 500));
+    next(new errorHandler('Failed to fetch addresses', 500));
   }
 };
 
@@ -62,9 +63,9 @@ export const createAddress = async (req, res, next) => {
     // Handle Mongoose validation errors
     if (error.name === 'ValidationError') {
       const messages = Object.values(error.errors).map(val => val.message);
-      return next(new CustomError(messages.join(', '), 400));
+      return next(new errorHandler(messages.join(', '), 400));
     }
-    next(new CustomError('Failed to add address', 500));
+    next(new errorHandler('Failed to add address', 500));
   }
 };
 
@@ -81,7 +82,7 @@ export const updateAddress = async (req, res, next) => {
     const address = await Address.findOne({ _id: id, user: req.userId });
 
     if (!address) {
-      throw new CustomError('Address not found or not authorized', 404);
+      throw new errorHandler('Address not found or not authorized', 404);
     }
 
     // Update fields
@@ -117,9 +118,9 @@ export const updateAddress = async (req, res, next) => {
     logger.error(`Error updating address ${req.params.id} for user ${req.userId}:`, error);
     if (error.name === 'ValidationError') {
       const messages = Object.values(error.errors).map(val => val.message);
-      return next(new CustomError(messages.join(', '), 400));
+      return next(new errorHandler(messages.join(', '), 400));
     }
-    next(error); // Pass CustomError directly, or wrap others
+    next(error); // Pass errorHandler directly, or wrap others
   }
 };
 
@@ -135,14 +136,14 @@ export const deleteAddress = async (req, res, next) => {
     const address = await Address.findOne({ _id: id, user: req.userId });
 
     if (!address) {
-      throw new CustomError('Address not found or not authorized', 404);
+      throw new errorHandler('Address not found or not authorized', 404);
     }
 
     if (address.isDefault) {
       // Prevent deleting the default address unless it's the only one
       const remainingAddressesCount = await Address.countDocuments({ user: req.userId, _id: { $ne: id } });
       if (remainingAddressesCount > 0) {
-        throw new CustomError('Cannot delete default address. Please set another address as default first.', 400);
+        throw new errorHandler('Cannot delete default address. Please set another address as default first.', 400);
       }
     }
 
@@ -167,7 +168,7 @@ export const setDefaultAddress = async (req, res, next) => {
     const addressToSetDefault = await Address.findOne({ _id: id, user: req.userId });
 
     if (!addressToSetDefault) {
-      throw new CustomError('Address not found or not authorized', 404);
+      throw new errorHandler('Address not found or not authorized', 404);
     }
 
     if (addressToSetDefault.isDefault) {

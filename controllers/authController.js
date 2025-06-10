@@ -220,19 +220,64 @@ export const getAuthStatus = (req, res) => {
 
 
 
-export const getAddresses = async (req, res, next) => {
+/**
+ * @desc Update user profile information
+ * @route PUT /api/auth/me
+ * @access Private
+ */
+export const updateUserProfile = async (req, res, next) => {
   try {
-    // req.userId would come from your 'protect' middleware after token verification
-    logger.info(`Fetching addresses for user ID: ${req.userId}`);
-    const user = await User.findById(req.userId).select('addresses'); 
+    // req.userId is set by the authentication middleware
+    const user = await User.findById(req.userId);
+
     if (!user) {
-      logger.warn(`getAddresses failed: User not found for ID ${req.userId}.`);
-      return res.status(404).json({ error: 'User not found.' });
+      logger.warn(`User profile update failed: User not found for ID ${req.userId}.`);
+      throw new CustomError('User not found.', 404);
     }
-    res.status(200).json({ addresses: user.addresses || [] });
+
+    const { name, phone } = req.body;
+
+    // Update fields if provided and different
+    if (name !== undefined && name !== user.name) {
+      user.name = name;
+      logger.info(`Updating user ${user.email} name to: ${name}`);
+    }
+    if (phone !== undefined && phone !== user.phone) {
+      user.phone = phone;
+      logger.info(`Updating user ${user.email} phone to: ${phone}`);
+    }
+
+    // Only save if any field has changed
+    if (user.isModified('name') || user.isModified('phone')) {
+      await user.save();
+      logger.info(`User ${user.email} profile updated successfully.`);
+      res.status(200).json({ 
+        message: 'Profile updated successfully',
+        user: { 
+          id: user._id, 
+          name: user.name, 
+          email: user.email, 
+          phone: user.phone,
+          role: user.role // Include role in response
+        } 
+      });
+    } else {
+      logger.info(`No changes detected for user ${user.email} profile.`);
+      res.status(200).json({ message: 'No changes to update', user: { 
+        id: user._id, 
+        name: user.name, 
+        email: user.email, 
+        phone: user.phone,
+        role: user.role
+      } });
+    }
+
   } catch (error) {
-    logger.error(`Error fetching addresses for user ID ${req.userId}:`, error);
+    logger.error(`Error updating user profile for user ${req.userId}:`, error);
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(val => val.message);
+      return next(new CustomError(messages.join(', '), 400));
+    }
     next(error); // Pass error to the next error handling middleware
   }
 };
-

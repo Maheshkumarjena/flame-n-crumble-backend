@@ -13,7 +13,7 @@ import cartRoutes from './routes/cartRoutes.js';
 import wishlistRoutes from './routes/wishlistRoutes.js'; // Assuming you have a wishlistRoutes.js
 import orderRoutes from './routes/orderRoutes.js'; // Assuming you have an orderRoutes.js
 import adminRoutes from './routes/adminRoutes.js'; // Assuming you have an adminRoutes.js
-
+import addressRoutes from './routes/addressRoutes.js'; // <-- NEW: Import address routes
 const app = express();
 
 
@@ -35,7 +35,7 @@ app.use('/api/cart', cartRoutes);
 app.use('/api/wishlist', wishlistRoutes); // Assuming you have a wishlistRoutes.js
 app.use('/api/orders', orderRoutes); // Assuming you have an orderRoutes.js
 app.use('/api/admin', adminRoutes); // Assuming you have an adminRoutes.js
-// app.use('/api/addresses', addressRoutes); // <-- NEW: Use address routes here
+app.use('/api/addresses', addressRoutes); // <-- NEW: Use address routes here
 
 // Error Handling
 app.use(errorHandler);
