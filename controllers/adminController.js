@@ -89,7 +89,7 @@ export const updateOrderStatus = async (req, res, next) => {
 export const createProduct = async (req, res, next) => {
   try {
     // Multer will populate req.body with text fields and req.file with file info
-    const { name, description, price, category, stock, bestseller, isNew } = req.body;
+    const { name, description, price, category, stock, bestseller, isNew , image } = req.body;
     const imagePath = req.file ? `/images/${req.file.filename}` : ''; // Store relative path
 
     const product = new Product({
@@ -98,7 +98,7 @@ export const createProduct = async (req, res, next) => {
       price: parseFloat(price), // Ensure numbers are parsed
       category,
       stock: parseInt(stock),   // Ensure numbers are parsed
-      image: imagePath,
+      image: image,
       bestseller: bestseller === 'true', // Convert string 'true'/'false' to boolean
       isNew: isNew === 'true',           // Convert string 'true'/'false' to boolean
     });
@@ -126,11 +126,13 @@ export const createProduct = async (req, res, next) => {
  */
 export const updateProduct = async (req, res, next) => {
   try {
+    console.log('update product called');
     const { productId } = req.params;
     // req.body contains the updated fields (text fields parsed by multer)
     // req.file contains the new image file (if uploaded)
-    const { name, description, price, category, stock, bestseller, isNew, image: existingImagePath } = req.body; // 'image' here refers to the *existing* path sent from frontend
+    const { name, description, price, category, stock, bestseller, isNew, image } = req.body; // 'image' here refers to the *existing* path sent from frontend
 
+    console.log('req.body:', req.body);
     const product = await Product.findById(productId);
 
     if (!product) {
@@ -143,7 +145,9 @@ export const updateProduct = async (req, res, next) => {
       return res.status(404).json({ error: 'Product not found' });
     }
 
+    
     // Update product fields from req.body
+    product.image = image;
     product.name = name;
     product.description = description;
     product.price = parseFloat(price);
@@ -151,35 +155,13 @@ export const updateProduct = async (req, res, next) => {
     product.stock = parseInt(stock);
     product.bestseller = bestseller === 'true';
     product.isNew = isNew === 'true';
+    
 
     // Handle image update logic
-    if (req.file) {
-      // If a new image was uploaded:
-      // 1. Delete the old image file from the public/images directory if it exists
-      if (product.image) {
-        const oldImagePath = path.join(PUBLIC_IMAGES_DIR, path.basename(product.image));
-        fs.unlink(oldImagePath, (unlinkErr) => {
-          if (unlinkErr && unlinkErr.code !== 'ENOENT') { // ENOENT means file not found, which is fine
-            console.error('Error deleting old product image:', unlinkErr);
-          }
-        });
-      }
-      // 2. Update product.image with the path to the new image
-      product.image = `/images/${req.file.filename}`;
-    } else if (existingImagePath === '' && product.image) {
-      // If frontend explicitly sent an empty string for 'image' and product had an image, delete it
-      const oldImagePath = path.join(PUBLIC_IMAGES_DIR, path.basename(product.image));
-      fs.unlink(oldImagePath, (unlinkErr) => {
-        if (unlinkErr && unlinkErr.code !== 'ENOENT') {
-          console.error('Error deleting old product image on clear request:', unlinkErr);
-        }
-      });
-      product.image = ''; // Clear image path in DB
-    } 
-    // If no new file and existingImagePath was not an empty string, means no change to image.
     // product.image retains its value (from DB or `existingImagePath` if it was sent).
 
     await product.save(); // Save the updated product
+    console.log('Product updated:', product);
     
     // Invalidate the cache for all products as a product was modified
     await redisClient.del(PRODUCTS_CACHE_KEY); 
