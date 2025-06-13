@@ -97,7 +97,7 @@ export const login = async (req, res, next) => {
       sameSite: 'Lax' // Recommended for CSRF protection and better compatibility
     });
     logger.info(`User ${email} logged in successfully.`);
-    res.json({ user: { id: user._id, name: user.name, email, role: user.role } }); // Include role
+    res.json({ user: { id: user._id, name: user.name, email, role: user.role , phoneNo:user.phone } }); // Include role
   } catch (err) {
     logger.error(`Login failed:`, err);
     next(err); // Pass error to the next error handling middleware
@@ -212,12 +212,33 @@ export const resendVerificationCode = async (req, res, next) => {
  * @route GET /api/auth/status
  * @access Private (will only succeed if authenticated)
  */
-export const getAuthStatus = (req, res) => {
-  // If this controller is reached, it means the `authenticate` middleware passed,
-  // indicating the user is logged in via their JWT cookie.
-  res.status(200).json({ loggedIn: true, userId: req.userId });
+export const getAuthStatus = async (req, res, next) => { // Made async and added next for error handling
+  try {
+    // If this controller is reached, it means the `authenticate` middleware passed,
+    // indicating the user is logged in via their JWT cookie.
+    // Fetch full user details from DB
+    const user = await User.findById(req.userId).select('-password -verificationToken -verificationTokenExpires'); 
+    
+    if (!user) {
+      logger.warn(`Auth status check: User not found for ID ${req.userId}.`);
+      return res.status(404).json({ loggedIn: false, error: 'User not found.' });
+    }
+    
+    logger.info(`Auth status for user ${user.email}: loggedIn: true`);
+    res.status(200).json({ 
+      loggedIn: true, 
+      id: user._id, 
+      name: user.name, 
+      email: user.email, 
+      role: user.role,
+      isVerified: user.isVerified,
+      phone: user.phone 
+    });
+  } catch (error) {
+    logger.error(`Error during getAuthStatus for userId ${req.userId}:`, error);
+    next(error);
+  }
 };
-
 
 
 /**
@@ -227,11 +248,20 @@ export const getAuthStatus = (req, res) => {
  */
 export const updateUserProfile = async (req, res, next) => {
   try {
-    // req.userId is set by the authentication middleware
-    const user = await User.findById(req.userId);
+    // Get the user ID from the URL parameters (e.g., /api/users/:id)
+    const { id } = req.params;
+
+    // Optional: Add a check to ensure the authenticated user is only updating their own profile.
+    // This is a crucial security measure. req.userId comes from your authentication middleware.
+    if (req.userId && req.userId !== id) {
+      logger.warn(`Unauthorized attempt to update user profile: User ${req.userId} tried to modify ${id}.`);
+      throw new CustomError('Unauthorized: You can only update your own profile.', 403);
+    }
+
+    const user = await User.findById(id); // Use the ID from params
 
     if (!user) {
-      logger.warn(`User profile update failed: User not found for ID ${req.userId}.`);
+      logger.warn(`User profile update failed: User not found for ID ${id}.`);
       throw new CustomError('User not found.', 404);
     }
 
@@ -251,33 +281,69 @@ export const updateUserProfile = async (req, res, next) => {
     if (user.isModified('name') || user.isModified('phone')) {
       await user.save();
       logger.info(`User ${user.email} profile updated successfully.`);
-      res.status(200).json({ 
+      res.status(200).json({
         message: 'Profile updated successfully',
-        user: { 
-          id: user._id, 
-          name: user.name, 
-          email: user.email, 
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
           phone: user.phone,
           role: user.role // Include role in response
-        } 
+        }
       });
     } else {
       logger.info(`No changes detected for user ${user.email} profile.`);
-      res.status(200).json({ message: 'No changes to update', user: { 
-        id: user._id, 
-        name: user.name, 
-        email: user.email, 
-        phone: user.phone,
-        role: user.role
-      } });
+      res.status(200).json({
+        message: 'No changes to update', user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          phone: user.phone,
+          role: user.role
+        }
+      });
     }
 
   } catch (error) {
-    logger.error(`Error updating user profile for user ${req.userId}:`, error);
+    logger.error(`Error updating user profile for ID ${req.params.id}:`, error); // Log the ID from params
     if (error.name === 'ValidationError') {
       const messages = Object.values(error.errors).map(val => val.message);
       return next(new CustomError(messages.join(', '), 400));
     }
     next(error); // Pass error to the next error handling middleware
   }
+};
+
+// * @desc Get user details by ID
+//  * @route GET /api/auth/:id
+//  * @access Private (e.g., only authenticated users can view others' profiles)
+//  */
+export const getUserDetailsById = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    logger.info(`Attempting to fetch user details for ID: ${id}`);
+
+    // Find user by ID, selecting only relevant fields
+    const user = await User.findById(id).select('-password -verificationToken -verificationTokenExpires');
+
+    if (!user) {
+      logger.warn(`User details fetch failed: User not found for ID ${id}.`);
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    logger.info(`User details fetched successfully for ID: ${id}.`);
+    res.status(200).json({ 
+      user: { 
+        id: user._id, 
+        name: user.name, 
+        email: user.email, 
+        phone: user.phone,
+        role: user.role,
+        isVerified: user.isVerified
+      } 
+    });
+  } catch (error) {
+    logger.error(`Error fetching user details for ID ${req.params.id}:`, error);
+    next(error); // Pass error to the next error handling middleware
+  }
 };

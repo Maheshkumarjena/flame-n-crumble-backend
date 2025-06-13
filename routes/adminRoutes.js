@@ -2,21 +2,26 @@ import express from 'express';
 import { 
   getDashboardStats,
   updateOrderStatus,
-  addProduct,
+  createProduct,
   updateProduct,
   deleteProduct
 } from '../controllers/adminController.js';
 import { authenticate, isAdmin } from '../middleware/auth.js';
+import upload from '../middleware/uploadMiddleware.js'; // Import the upload middleware
 
 const router = express.Router();
 
 router.use(authenticate, isAdmin);
 
-router.get('/dashboard', authenticate,isAdmin, getDashboardStats);
-router.patch('/orders/:orderId', authenticate,isAdmin, updateOrderStatus);
-router.post('/products/addItem', authenticate,isAdmin, addProduct); 
-router.patch('/products/:productId', authenticate,isAdmin, updateProduct)
-router.delete('/products/:productId', authenticate,isAdmin, deleteProduct)
+router.get('/dashboard',  getDashboardStats);
+router.patch('/orders/:orderId',  updateOrderStatus);
+
+
+// Product Management
+// Apply upload.single('image') middleware to handle file uploads
+router.post('/products', upload.single('image'), createProduct);        // Route for creating a new product
+router.put('/products/:productId', upload.single('image'), updateProduct); // Route for updating an existing product
+router.delete('/products/:productId', deleteProduct); // Route for deleting a product
 
 
 export default router;

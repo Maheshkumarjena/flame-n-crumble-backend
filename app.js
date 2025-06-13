@@ -20,7 +20,8 @@ const app = express();
 // Middleware
 app.use(helmet());
 app.use(cors({ origin: env.CLIENT_URL, credentials: true }));
-app.use(compression());
+// app.use(cors())
+app.use(compression()); 
 app.use(cookieParser());
 app.use(express.json());
 app.use(morgan('dev'));
