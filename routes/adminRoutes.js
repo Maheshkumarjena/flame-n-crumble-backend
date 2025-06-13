@@ -7,7 +7,10 @@ import {
   deleteProduct
 } from '../controllers/adminController.js';
 import { authenticate, isAdmin } from '../middleware/auth.js';
-import upload from '../middleware/uploadMiddleware.js'; // Import the upload middleware
+import multer from 'multer';
+// import upload from '../utils/Cloudinary.js'; // Assuming you have a Cloudinary setup for image uploads
+
+
 
 const router = express.Router();
 
@@ -19,8 +22,8 @@ router.patch('/orders/:orderId',  updateOrderStatus);
 
 // Product Management
 // Apply upload.single('image') middleware to handle file uploads
-router.post('/products', upload.single('image'), createProduct);        // Route for creating a new product
-router.put('/products/:productId', upload.single('image'), updateProduct); // Route for updating an existing product
+router.post('/products', createProduct);        // Route for creating a new product
+router.put('/products/:productId', updateProduct); // Route for updating an existing product
 router.delete('/products/:productId', deleteProduct); // Route for deleting a product
 
 

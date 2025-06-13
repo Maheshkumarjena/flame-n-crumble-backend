@@ -14,6 +14,7 @@ import wishlistRoutes from './routes/wishlistRoutes.js'; // Assuming you have a 
 import orderRoutes from './routes/orderRoutes.js'; // Assuming you have an orderRoutes.js
 import adminRoutes from './routes/adminRoutes.js'; // Assuming you have an adminRoutes.js
 import addressRoutes from './routes/addressRoutes.js'; // <-- NEW: Import address routes
+import uploadRoutes from './routes/uploadRoutes.js'; // Assuming you have an uploadRoutes.js for file uploads
 const app = express();
 
 
@@ -30,6 +31,7 @@ app.use(morgan('dev'));
 connectDB();
 
 // Routes
+app.use('/api/upload', uploadRoutes); // Assuming you have an uploadRoutes.js for file uploads
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/cart', cartRoutes);

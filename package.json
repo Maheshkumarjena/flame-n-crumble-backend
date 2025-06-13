@@ -10,7 +10,7 @@
   "dependencies": {
     "bcrypt": "^6.0.0",
     "bcryptjs": "^2.4.3",
-    "cloudinary": "^2.6.1",
+    "cloudinary": "^1.41.3",
     "compression": "^1.8.0",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
@@ -24,6 +24,7 @@
     "mongoose": "^7.8.7",
     "morgan": "^1.10.0",
     "multer": "^2.0.1",
+    "multer-storage-cloudinary": "^4.0.0",
     "nodemailer": "^7.0.3",
     "redis": "^4.7.1",
     "winston": "^3.10.0"

@@ -1,7 +1,5 @@
-import pkg from 'cloudinary';
-
-const { v2: cloudinary, UploadApiResponse } = pkg;
-import { Readable } from 'stream';
+import { v2 as cloudinary } from 'cloudinary';
+import { CloudinaryStorage } from 'multer-storage-cloudinary';
 
 
 // Optional: You can remove this if you no longer want to log the keys
@@ -13,34 +11,17 @@ cloudinary.config({
   api_secret: "tFVVkEkNjKlic2gKQCRU6PsMROk"
 });
 
-// Helper to convert buffer to stream
-const bufferToStream = (buffer) => {
-  const readable = new Readable();
-  readable.push(buffer);
-  readable.push(null);
-  return readable;
-};
 
-const uploadToCloudinary = (buffer, filename) => {
-  return new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream(
-      {
-        resource_type: 'image',
-        folder: 'app',
-        public_id: filename.split('.')[0],
-      },
-      (error, result) => {
-        if (error) {
-          console.error("❌ Cloudinary Upload Error:", error);
-          return reject(error);
-        }
-        console.log('☁️ Uploaded to Cloudinary:', result?.secure_url);
-        resolve(result?.secure_url || '');
-      }
-    );
 
-    bufferToStream(buffer).pipe(stream);
-  });
-};
 
-export default uploadToCloudinary;
+// Set up Multer storage engine for Cloudinary
+export const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'ecommerce-products',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+    transformation: [{ width: 800, height: 800, crop: 'limit' }]
+  },
+});
+
+
