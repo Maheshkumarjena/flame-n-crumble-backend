@@ -4,7 +4,10 @@ import {
   updateOrderStatus,
   createProduct,
   updateProduct,
-  deleteProduct
+  deleteProduct,
+  getAllUsers,
+  updateUserRole,
+  deleteUser
 } from '../controllers/adminController.js';
 import { authenticate, isAdmin } from '../middleware/auth.js';
 import multer from 'multer';
@@ -25,6 +28,9 @@ router.patch('/orders/:orderId',  updateOrderStatus);
 router.post('/products', createProduct);        // Route for creating a new product
 router.put('/products/:productId', updateProduct); // Route for updating an existing product
 router.delete('/products/:productId', deleteProduct); // Route for deleting a product
+router.get('/users',getAllUsers)
+router.patch('/users/:userId/role',updateUserRole)
+router.delete('/users/:userId',deleteUser)
 
 
 export default router;

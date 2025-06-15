@@ -4,7 +4,7 @@ import User from '../models/User.js';
 
 export const authenticate = (req, res, next) => {
   const token = req.cookies.token;
-  if (!token) return res.status(401).json({ error: 'Unauthorized' });
+  if (!token) return res.status(401).json({ error: 'UUnauthorized' });
 
   try {
     const decoded = jwt.verify(token, env.JWT_SECRET);

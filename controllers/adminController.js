@@ -7,6 +7,8 @@ import path from 'path'; // For path manipulation
 import { fileURLToPath } from 'url'; // For ES Modules path resolution
 
 const PRODUCTS_CACHE_KEY = 'products'; 
+const USERS_CACHE_KEY = 'users'; // New cache key for all users
+
 
 // Get __dirname equivalent in ES Modules for file deletion
 const __filename = fileURLToPath(import.meta.url);
@@ -208,5 +210,130 @@ export const deleteProduct = async (req, res, next) => {
     res.json({ message: 'Product deleted successfully' }); // Respond with a success message
   } catch (err) {
     next(err);
+  }
+};
+
+
+/**
+ * @desc Get all users (Admin only)
+ * @route GET /api/admin/users
+ * @access Private/Admin
+ */
+export const getAllUsers = async (req, res, next) => {
+  try {
+    const cachedUsers = await redisClient.get(USERS_CACHE_KEY);
+
+    if (cachedUsers) {
+      return res.json({ users: JSON.parse(cachedUsers) });
+    }
+
+    // Select all user fields except password and sensitive tokens
+    const users = await User.find({}).select('-password -verificationToken -verificationTokenExpires');
+    
+    // Cache the users for a reasonable time (e.g., 5 minutes = 300 seconds)
+    await redisClient.setEx(USERS_CACHE_KEY, 300, JSON.stringify(users));
+
+    res.json({ users });
+  } catch (error) {
+    console.error('Error fetching all users:', error);
+    next(error); // Pass error to the error handling middleware
+  }
+};
+
+/**
+ * @desc Update a user's role (Admin only)
+ * @route PATCH /api/admin/users/:userId/role
+ * @access Private/Admin
+ */
+export const updateUserRole = async (req, res, next) => {
+  try {
+
+    console.log("request body====================",req.body)
+    const { userId } = req.params;
+    const { role } = req.body;
+
+    // Validate role
+    const validRoles = ['user', 'admin'];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({ error: 'Invalid user role provided. Must be "user" or "admin".' });
+    }
+
+    // Find user and update role
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Prevent an admin from demoting themselves or the last admin
+    // This is a crucial business logic check
+    if (user.role === 'admin' && role === 'user') {
+      const adminCount = await User.countDocuments({ role: 'admin' });
+      if (adminCount <= 1) {
+        return res.status(403).json({ error: 'Cannot demote the last admin user.' });
+      }
+      // Also prevent an admin from demoting themselves
+      if (req.userId.toString() === userId) {
+         return res.status(403).json({ error: 'Cannot demote your own account.' });
+      }
+    }
+
+
+    user.role = role;
+    await user.save();
+
+    // Invalidate the users cache
+    await redisClient.del(USERS_CACHE_KEY); 
+    // If user details are also cached individually (e.g., `user:userId`), invalidate that too.
+    await redisClient.del(`user:${userId}`); // Assuming a cache key like 'user:userId'
+
+    res.json({ message: 'User role updated successfully', user });
+  } catch (error) {
+    console.error(`Error updating user role for ${req.params.userId}:`, error);
+    next(error);
+  }
+};
+
+/**
+ * @desc Delete a user (Admin only)
+ * @route DELETE /api/admin/users/:userId
+ * @access Private/Admin
+ */
+export const deleteUser = async (req, res, next) => {
+  console.log('console log of request',req.body)
+
+  try {
+    const { userId } = req.params;
+
+    // Prevent an admin from deleting themselves
+    // if (req.admin.toString() === userId) {
+    //   return res.status(403).json({ error: 'Cannot delete your own account.' });
+    // }
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // If the user being deleted is an admin, ensure there's at least one other admin remaining
+    if (user.role === 'admin') {
+      const adminCount = await User.countDocuments({ role: 'admin' });
+      if (adminCount <= 1) {
+        return res.status(403).json({ error: 'Cannot delete the last admin user.' });
+      }
+    }
+
+    await User.deleteOne({ _id: userId });
+
+    // Invalidate the users cache
+    await redisClient.del(USERS_CACHE_KEY);
+    // Invalidate any individual user cache
+    await redisClient.del(`user:${userId}`); 
+
+    res.json({ message: 'User deleted successfully' });
+  } catch (error) {
+    console.error(`Error deleting user ${req.params.userId}:`, error);
+    next(error);
   }
 };
