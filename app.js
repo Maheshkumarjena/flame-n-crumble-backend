@@ -17,11 +17,15 @@ import addressRoutes from './routes/addressRoutes.js'; // <-- NEW: Import addres
 import uploadRoutes from './routes/uploadRoutes.js'; // Assuming you have an uploadRoutes.js for file uploads
 const app = express();
 
+console.log("CLIENT URL",env.CLIENT_URL);
+
 
 // Middleware
 app.use(helmet());
-app.use(cors({ origin: env.CLIENT_URL, credentials: true }));
-// app.use(cors())
+app.use(cors({
+  origin: ["https://flame-crumble.vercel.app", "http://localhost:3000"],
+  credentials: true
+}));// app.use(cors())
 app.use(compression()); 
 app.use(cookieParser());
 app.use(express.json());
