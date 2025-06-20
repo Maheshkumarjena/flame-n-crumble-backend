@@ -96,7 +96,9 @@ export const login = async (req, res, next) => {
 
         // --- CHANGES START HERE ---
         // Determine if the cookie should be secure (i.e., sent over HTTPS only)
-        const isSecure = env.NODE_ENV === 'production';
+        // const isSecure = env.NODE_ENV === 'production';
+        const isSecure = true;
+
 
         // Set SameSite policy based on the environment and security needs.
         // 'None' requires 'Secure' and allows cross-site cookies.
@@ -105,11 +107,8 @@ export const login = async (req, res, next) => {
         const sameSitePolicy = 'None'; // Explicitly 'None' for cross-site with credentials
 
         res.cookie('token', token, {
-            httpOnly: true,
-            secure: isSecure, // This MUST be true in production, enforced by isSecure
-            // Make sure SameSite is capitalized correctly: 'SameSite' not 'SameSite'
+         httpOnly: true , secure: true, sameSite: 'none',   // Make sure SameSite is capitalized correctly: 'SameSite' not 'SameSite'
             // And its value is a string 'None', 'Lax', or 'Strict'
-            SameSite: sameSitePolicy,
             // For cross-origin cookies with SameSite='None',
             // it's good practice to explicitly set the domain, if your backend and frontend
             // are on different subdomains of the same top-level domain (e.g., api.example.com and app.example.com).
