@@ -6,6 +6,8 @@ import { sendVerificationEmail } from '../utils/mailer.js'; // Import the mailer
 import crypto from 'crypto'; // Node.js built-in module for generating random bytes
 import logger from '../utils/logger.js'; // Import logger
 
+console.log(env.NODE_ENV)
+
 export const register = async (req, res, next) => {
   try {
     const { name, email, password } = req.body;
@@ -75,33 +77,56 @@ export const register = async (req, res, next) => {
 
 export const login = async (req, res, next) => {
   try {
-    const { email, password } = req.body;
-    logger.info(`Attempting to log in user: ${email}`);
+        const { email, password } = req.body;
+        logger.info(`Attempting to log in user: ${email}`);
 
-    const user = await User.findOne({ email });
-    if (!user || !(await bcrypt.compare(password, user.password))) {
-      logger.warn(`Login failed for ${email}: Invalid credentials.`);
-      throw new Error('Invalid credentials');
+        const user = await User.findOne({ email });
+        if (!user || !(await bcrypt.compare(password, user.password))) {
+            logger.warn(`Login failed for ${email}: Invalid credentials.`);
+            throw new Error('Invalid credentials');
+        }
+
+        // Prevent login if email is not verified
+        if (!user.isVerified) {
+            logger.warn(`Login failed for ${email}: Email not verified.`);
+            return res.status(403).json({ error: 'Please verify your email to log in.' });
+        }
+
+        const token = jwt.sign({ userId: user._id }, env.JWT_SECRET, { expiresIn: '1d' });
+
+        // --- CHANGES START HERE ---
+        // Determine if the cookie should be secure (i.e., sent over HTTPS only)
+        const isSecure = env.NODE_ENV === 'production';
+
+        // Set SameSite policy based on the environment and security needs.
+        // 'None' requires 'Secure' and allows cross-site cookies.
+        // 'Lax' is a good default but can sometimes cause issues with initial cross-site loads/redirects.
+        // Given your issue, 'None' is often necessary for explicit cross-origin behavior.
+        const sameSitePolicy = 'None'; // Explicitly 'None' for cross-site with credentials
+
+        res.cookie('token', token, {
+            httpOnly: true,
+            secure: isSecure, // This MUST be true in production, enforced by isSecure
+            // Make sure SameSite is capitalized correctly: 'SameSite' not 'SameSite'
+            // And its value is a string 'None', 'Lax', or 'Strict'
+            SameSite: sameSitePolicy,
+            // For cross-origin cookies with SameSite='None',
+            // it's good practice to explicitly set the domain, if your backend and frontend
+            // are on different subdomains of the same top-level domain (e.g., api.example.com and app.example.com).
+            // If they are on completely different domains (e.g., example.com and anothersite.com),
+            // you typically don't set 'Domain'.
+            // Leave 'Domain' unset unless you specifically need it for subdomains.
+            // domain: '.yourdomain.com', // Uncomment and set if needed, e.g., for subdomains
+            path: '/' // Ensure the cookie is accessible across the entire domain
+        });
+        // --- CHANGES END HERE ---
+
+        logger.info(`User ${email} logged in successfully.`);
+        res.json({ user: { id: user._id, name: user.name, email, role: user.role, phoneNo: user.phone } }); // Include role
+    } catch (err) {
+        logger.error(`Login failed:`, err);
+        next(err); // Pass error to the next error handling middleware
     }
-
-    // Prevent login if email is not verified
-    if (!user.isVerified) {
-      logger.warn(`Login failed for ${email}: Email not verified.`);
-      return res.status(403).json({ error: 'Please verify your email to log in.' });
-    }
-
-    const token = jwt.sign({ userId: user._id }, env.JWT_SECRET, { expiresIn: '1d' });
-    res.cookie('token', token, { 
-      httpOnly: true, 
-      secure: env.NODE_ENV === 'production', // Use secure cookies in production (HTTPS)
-      sameSite: 'Lax' // Recommended for CSRF protection and better compatibility
-    });
-    logger.info(`User ${email} logged in successfully.`);
-    res.json({ user: { id: user._id, name: user.name, email, role: user.role , phoneNo:user.phone } }); // Include role
-  } catch (err) {
-    logger.error(`Login failed:`, err);
-    next(err); // Pass error to the next error handling middleware
-  }
 };
 
 export const logout = (req, res) => {
@@ -109,7 +134,7 @@ export const logout = (req, res) => {
   res.clearCookie('token', {
     httpOnly: true,
     secure: env.NODE_ENV === 'production',
-    sameSite: 'Lax'
+    SameSite: 'None'
   });
   res.json({ message: 'Logged out' });
 };

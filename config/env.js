@@ -10,7 +10,7 @@ export const env = {
   JWT_SECRET: process.env.JWT_SECRET || 'your-secret-key',
   NODE_ENV: process.env.NODE_ENV || 'development',
   REDIS_URL: process.env.REDIS_URL || 'redis-cli -u redis://default:jXRbhHcwUz9IwtNvP0JDiLYqM0wSLirc@redis-19035.crce179.ap-south-1-1.ec2.redns.redis-cloud.com:19035',
-  CLIENT_URL: process.env.CLIENT_URL || 'http://localhost:3000',
+  CLIENT_URL: process.env.CLIENT_URL || 'https://flame-crumble.vercel.app',
   BREVO_SMTP_HOST: process.env.BREVO_SMTP_HOST || 'smtp-relay.brevo.com',
   BREVO_SMTP_PORT: process.env.BREVO_SMTP_PORT || 587,
   BREVO_SMTP_USERNAME: process.env.BREVO_SMTP_USERNAME || 'your-brevo-username',
