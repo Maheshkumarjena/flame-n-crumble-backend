@@ -15,5 +15,8 @@ export const env = {
   BREVO_SMTP_PORT: process.env.BREVO_SMTP_PORT || 587,
   BREVO_SMTP_USERNAME: process.env.BREVO_SMTP_USERNAME || 'your-brevo-username',
   BREVO_SMTP_PASSWORD: process.env.BREVO_SMTP_PASSWORD || 'your-brevo-password',
-  EMAIL_FROM: process.env.EMAIL_FROM || 'maheshkumarjena46@gmail.com'
+  EMAIL_FROM: process.env.EMAIL_FROM || 'maheshkumarjena46@gmail.com',
+   RAZORPAY_KEY_ID: process.env.RAZORPAY_KEY_ID,
+  RAZORPAY_KEY_SECRET: process.env.RAZORPAY_KEY_SECRET,
+  RAZORPAY_WEBHOOK_SECRET: process.env.RAZORPAY_WEBHOOK_SECRET,
 };
