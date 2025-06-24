@@ -15,10 +15,14 @@ import orderRoutes from './routes/orderRoutes.js'; // Assuming you have an order
 import adminRoutes from './routes/adminRoutes.js'; // Assuming you have an adminRoutes.js
 import addressRoutes from './routes/addressRoutes.js'; // <-- NEW: Import address routes
 import uploadRoutes from './routes/uploadRoutes.js'; // Assuming you have an uploadRoutes.js for file uploads
+import webhookRoutes from './routes/webhookRoutes.js'
 const app = express();
 
 console.log("CLIENT URL",env.CLIENT_URL);
 
+
+
+app.use('/api/webhooks/razorpay', express.raw({ type: 'application/json' }));
 
 // Middleware
 app.use(helmet());
@@ -43,6 +47,8 @@ app.use('/api/wishlist', wishlistRoutes); // Assuming you have a wishlistRoutes.
 app.use('/api/orders', orderRoutes); // Assuming you have an orderRoutes.js
 app.use('/api/admin', adminRoutes); // Assuming you have an adminRoutes.js
 app.use('/api/addresses', addressRoutes); // <-- NEW: Use address routes here
+app.use('/api/webhooks', webhookRoutes); // <-- NEW: Use webhook routes here
+
 
 // Error Handling
 app.use(errorHandler);

@@ -85,3 +85,92 @@ export const sendVerificationEmail = async (to, code) => {
     throw new Error('Failed to send verification email. Please try again.');
   }
 };
+
+
+export const sendOrderConfirmationEmail = async (order) => {
+  const subject = `Order Confirmation - flame&crumble Order #${order._id.toString().slice(-6).toUpperCase()}`;
+  
+  const orderItemsHtml = order.orderItems.map(item => `
+    <li>
+      <strong>${item.name}</strong> (Qty: ${item.quantity}) - ₹${item.price.toFixed(2)} each
+    </li>
+  `).join('');
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+      <h2>Thank You for Your Order!</h2>
+      <p>Hi ${order.user.name},</p>
+      <p>Your order with flame&crumble has been successfully placed and paid for. We're getting it ready!</p>
+      
+      <h3 style="color: #E30B5D;">Order #${order._id.toString().slice(-6).toUpperCase()}</h3>
+      <p><strong>Order Date:</strong> ${new Date(order.createdAt).toLocaleDateString()}</p>
+      <p><strong>Payment Status:</strong> Paid</p>
+      <p><strong>Total Amount:</strong> ₹${order.totalAmount.toFixed(2)}</p>
+
+      <h4>Order Summary:</h4>
+      <ul style="list-style-type: none; padding: 0;">
+        ${orderItemsHtml}
+      </ul>
+
+      <h4>Shipping Address:</h4>
+      <p>${order.shippingAddress.fullName}</p>
+      <p>${order.shippingAddress.line1}</p>
+      ${order.shippingAddress.line2 ? `<p>${order.shippingAddress.line2}</p>` : ''}
+      <p>${order.shippingAddress.city}, ${order.shippingAddress.state} - ${order.shippingAddress.zip}</p>
+      <p>${order.shippingAddress.country}</p>
+      <p>Phone: ${order.shippingAddress.phone}</p>
+
+      <p>You can view your order details anytime by logging into your account and visiting your <a href="${env.FRONTEND_URL}/myorders" style="color: #E30B5D; text-decoration: none;">My Orders</a> page.</p>
+      
+      <p>Thank you for shopping with flame&crumble!</p>
+      <p>Best regards,</p>
+      <p>The flame&crumble Team</p>
+    </div>
+  `;
+
+  const text = `
+    Order Confirmation - flame&crumble Order #${order._id.toString().slice(-6).toUpperCase()}
+
+    Thank You for Your Order!
+    Hi ${order.user.name},
+
+    Your order with flame&crumble has been successfully placed and paid for. We're getting it ready!
+
+    Order ID: ${order._id}
+    Order Date: ${new Date(order.createdAt).toLocaleDateString()}
+    Payment Status: Paid
+    Total Amount: ₹${order.totalAmount.toFixed(2)}
+
+    Order Summary:
+    ${order.orderItems.map(item => `- ${item.name} (Qty: ${item.quantity}) - ₹${item.price.toFixed(2)} each`).join('\n')}
+
+    Shipping Address:
+    ${order.shippingAddress.fullName}
+    ${order.shippingAddress.line1}
+    ${order.shippingAddress.line2 ? `${order.shippingAddress.line2}\n` : ''}${order.shippingAddress.city}, ${order.shippingAddress.state} - ${order.shippingAddress.zip}
+    ${order.shippingAddress.country}
+    Phone: ${order.shippingAddress.phone}
+
+    You can view your order details anytime by logging into your account and visiting your My Orders page: ${env.FRONTEND_URL}/myorders
+
+    Thank you for shopping with flame&crumble!
+    Best regards,
+    The flame&crumble Team
+  `;
+
+  const mailOptions = {
+    from: `flame&crumble <${env.EMAIL_FROM}>`,
+    to: order.user.email,
+    subject: subject,
+    text: text,
+    html: html,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    logger.info(`Order confirmation email sent to ${order.user.email} for order ${order._id}`);
+  } catch (error) {
+    logger.error(`Failed to send order confirmation email to ${order.user.email} for order ${order._id}:`, error);
+    // Do not re-throw here as webhook should ideally succeed even if email fails
+  }
+};
