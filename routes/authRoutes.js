@@ -1,5 +1,6 @@
 import express from 'express';
 import { getUserDetailsById,
+  googleLogin,
   updateUserProfile,
   getAuthStatus,
   register, 
@@ -17,6 +18,7 @@ const router = express.Router();
 router.post('/register', apiLimiter, validateRegister, register); // Apply rate limiting to registration
 router.post('/login', apiLimiter, validateLogin, login);     // Apply rate limiting to login
 router.post('/logout', logout);
+router.post('/google-login', apiLimiter,  googleLogin );
 
 router.post('/verify-email', apiLimiter, verifyEmail); // New route for email verification
 router.post('/resend-verification', apiLimiter, resendVerificationCode); // New route for resending code

@@ -4,9 +4,10 @@ import bcrypt from 'bcryptjs'; // Import bcrypt for hashing verification tokens
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
+  password: { type: String, required: true }, // STILL: unconditionally required
+  profileImage: { type: String }, // NEW FIELD: To store profile image URL
   role: { type: String, enum: ['user', 'admin'], default: 'user' },
-   phone: {
+  phone: {
     type: String,
     trim: true,
     // You might add validation here if needed

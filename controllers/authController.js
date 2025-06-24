@@ -107,15 +107,7 @@ export const login = async (req, res, next) => {
         const sameSitePolicy = 'None'; // Explicitly 'None' for cross-site with credentials
 
         res.cookie('token', token, {
-         httpOnly: true , secure: true, sameSite: 'none',   // Make sure SameSite is capitalized correctly: 'SameSite' not 'SameSite'
-            // And its value is a string 'None', 'Lax', or 'Strict'
-            // For cross-origin cookies with SameSite='None',
-            // it's good practice to explicitly set the domain, if your backend and frontend
-            // are on different subdomains of the same top-level domain (e.g., api.example.com and app.example.com).
-            // If they are on completely different domains (e.g., example.com and anothersite.com),
-            // you typically don't set 'Domain'.
-            // Leave 'Domain' unset unless you specifically need it for subdomains.
-            // domain: '.yourdomain.com', // Uncomment and set if needed, e.g., for subdomains
+         httpOnly: true , secure: true, sameSite: 'none',   
             path: '/' // Ensure the cookie is accessible across the entire domain
         });
         // --- CHANGES END HERE ---
@@ -127,6 +119,112 @@ export const login = async (req, res, next) => {
         next(err); // Pass error to the next error handling middleware
     }
 };
+
+/**
+ * @desc Handles login/registration for users signing in via Google (NextAuth.js callback)
+ * @route POST /api/auth/google-login
+ * @access Public (called internally by NextAuth.js)
+ */
+export const googleLogin = async (req, res, next) => {
+    console.log("google login hit (email-based, compatible with current User model)");
+    try {
+        // Destructure email, name, and image from the request body.
+        // `image` will now be stored in the `profileImage` field in the model.
+        const { email, name, image } = req.body; 
+
+        // Basic validation: ensure email is present
+        if (!email) {
+            // Using a placeholder for logger if not imported for this snippet
+            console.warn('Google login failed: Missing email in request body.');
+            // logger.warn('Google login failed: Missing email in request body.');
+            return res.status(400).json({ error: 'Missing required Google user information (email).' });
+        }
+
+        console.info(`Attempting Google login for email: ${email}`);
+        // logger.info(`Attempting Google login for email: ${email}`);
+
+        // 1. Try to find user by email
+        let user = await User.findOne({ email });
+        console.log("User found/attempted to find by email:", user);
+
+        if (user) {
+            // Scenario A: User found by email (existing user)
+            console.info(`User found by email: ${user.email}. Logging in.`);
+            // logger.info(`User found by email: ${user.email}. Logging in.`);
+            
+            // Update user's name and profile image if Google provides newer information
+            user.name = name || user.name;
+            user.profileImage = image || user.profileImage; // This line now correctly stores to the model
+            
+            // If the user's email was not previously verified, mark it as verified now.
+            if (!user.isVerified) {
+                user.isVerified = true;
+                console.info(`Email ${user.email} marked as verified due to Google login.`);
+                // logger.info(`Email ${user.email} marked as verified due to Google login.`);
+            }
+            await user.save();
+
+        } else {
+            // Scenario B: No user found by email (new user via Google login)
+            console.info(`Creating new user for Google login: ${email}`);
+            // logger.info(`Creating new user for Google login: ${email}`);
+
+            // Since the 'password' field is `required: true` in your schema,
+            // we must create and store a hashed dummy password for new social users.
+            const dummyPassword = Math.random().toString(36).slice(-10) + Date.now(); // Generate a random string
+            const hashedPassword = await bcrypt.hash(dummyPassword, 10); // Hash the dummy password
+
+            user = new User({
+                name,
+                email,
+                password: hashedPassword, // Store the generated hashed dummy password
+                profileImage: image,     // This line now correctly stores the image
+                isVerified: true,        // Auto-verify for Google logins
+            });
+            await user.save();
+        }
+
+        // Generate JWT token for the user
+        const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1d' }); // Using process.env directly for example
+        console.log("Token created:", token);
+
+        // Set the token as a cookie
+        const isSecure = process.env.NODE_ENV === 'production';
+        res.cookie('token', token, {
+            httpOnly: true,
+            secure: isSecure, 
+            sameSite: 'None', 
+            path: '/'
+        });
+
+        console.log("Cookies sent to frontend");
+        console.info(`Google login successful for user: ${user.email}.`);
+        // logger.info(`Google login successful for user: ${user.email}.`);
+        res.status(200).json({
+            message: 'Google login successful.',
+            user: {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                role: user.role, 
+                phoneNo: user.phone, 
+                isVerified: user.isVerified,
+                profileImage: user.profileImage, // Now correctly returned in response
+            },
+            token, 
+        });
+
+    } catch (err) {
+        console.error(`Error during Google login for ${req.body?.email || 'unknown user'}:`, err);
+        // logger.error(`Error during Google login for ${req.body?.email || 'unknown user'}:`, err);
+        // Handle MongoDB duplicate key error if email is unique in your User model
+        if (err.code === 11000 && err.keyValue?.email) { 
+            return res.status(409).json({ error: 'A user with this email already exists.' });
+        }
+        next(err); 
+    }
+};
+
 
 export const logout = (req, res) => {
   logger.info('User attempting to log out.');
