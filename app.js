@@ -27,7 +27,7 @@ app.use('/api/webhooks/razorpay', express.raw({ type: 'application/json' }));
 // Middleware
 app.use(helmet());
 app.use(cors({
-  origin: ["https://flame-crumble.vercel.app", "http://localhost:3000"],
+  origin: ["https://flame-n-crumble.vercel.app", "http://localhost:3000"],
   credentials: true
 }));// app.use(cors())
 app.use(compression()); 
