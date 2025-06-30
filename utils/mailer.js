@@ -90,9 +90,9 @@ export const sendVerificationEmail = async (to, code) => {
 export const sendOrderConfirmationEmail = async (order) => {
   const subject = `Order Confirmation - flame&crumble Order #${order._id.toString().slice(-6).toUpperCase()}`;
   
-  const orderItemsHtml = order.orderItems.map(item => `
+  const orderItemsHtml = order.items.map(item => `
     <li>
-      <strong>${item.name}</strong> (Qty: ${item.quantity}) - ₹${item.price.toFixed(2)} each
+      <strong>${item.product.name}</strong> (Qty: ${item.quantity}) - ₹${item.price.toFixed(2)} each
     </li>
   `).join('');
 
@@ -105,7 +105,7 @@ export const sendOrderConfirmationEmail = async (order) => {
       <h3 style="color: #E30B5D;">Order #${order._id.toString().slice(-6).toUpperCase()}</h3>
       <p><strong>Order Date:</strong> ${new Date(order.createdAt).toLocaleDateString()}</p>
       <p><strong>Payment Status:</strong> Paid</p>
-      <p><strong>Total Amount:</strong> ₹${order.totalAmount.toFixed(2)}</p>
+      <p><strong>Total Amount:</strong> ₹${order.total.toFixed(2)}</p>
 
       <h4>Order Summary:</h4>
       <ul style="list-style-type: none; padding: 0;">
@@ -113,14 +113,9 @@ export const sendOrderConfirmationEmail = async (order) => {
       </ul>
 
       <h4>Shipping Address:</h4>
-      <p>${order.shippingAddress.fullName}</p>
-      <p>${order.shippingAddress.line1}</p>
-      ${order.shippingAddress.line2 ? `<p>${order.shippingAddress.line2}</p>` : ''}
       <p>${order.shippingAddress.city}, ${order.shippingAddress.state} - ${order.shippingAddress.zip}</p>
       <p>${order.shippingAddress.country}</p>
-      <p>Phone: ${order.shippingAddress.phone}</p>
-
-      <p>You can view your order details anytime by logging into your account and visiting your <a href="${env.FRONTEND_URL}/myorders" style="color: #E30B5D; text-decoration: none;">My Orders</a> page.</p>
+      <p>You can view your order details anytime by logging into your account and visiting your <a href="${env.CLIENT_URL}/myorders" style="color: #E30B5D; text-decoration: none;">My Orders</a> page.</p>
       
       <p>Thank you for shopping with flame&crumble!</p>
       <p>Best regards,</p>
@@ -139,10 +134,10 @@ export const sendOrderConfirmationEmail = async (order) => {
     Order ID: ${order._id}
     Order Date: ${new Date(order.createdAt).toLocaleDateString()}
     Payment Status: Paid
-    Total Amount: ₹${order.totalAmount.toFixed(2)}
+    Total Amount: ₹${order.total.toFixed(2)}
 
     Order Summary:
-    ${order.orderItems.map(item => `- ${item.name} (Qty: ${item.quantity}) - ₹${item.price.toFixed(2)} each`).join('\n')}
+    ${order.items.map(item => `- ${item.name} (Qty: ${item.quantity}) - ₹${item.price.toFixed(2)} each`).join('\n')}
 
     Shipping Address:
     ${order.shippingAddress.fullName}
