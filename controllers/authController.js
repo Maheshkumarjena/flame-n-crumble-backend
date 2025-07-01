@@ -1,12 +1,12 @@
-import jwt from 'jsonwebtoken';
-import bcrypt from 'bcryptjs';
-import User from '../models/User.js';
-import { env } from '../config/env.js';
-import { sendVerificationEmail } from '../utils/mailer.js'; // Import the mailer utility
-import crypto from 'crypto'; // Node.js built-in module for generating random bytes
-import logger from '../utils/logger.js'; // Import logger
+import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
+import User from "../models/User.js";
+import { env } from "../config/env.js";
+import { sendVerificationEmail } from "../utils/mailer.js"; // Import the mailer utility
+import crypto from "crypto"; // Node.js built-in module for generating random bytes
+import logger from "../utils/logger.js"; // Import logger
 
-console.log(env.NODE_ENV)
+console.log("Node environment==========>", env.NODE_ENV);
 
 export const register = async (req, res, next) => {
   try {
@@ -17,8 +17,12 @@ export const register = async (req, res, next) => {
     // Check if user with this email already exists and is verified
     const existingUser = await User.findOne({ email });
     if (existingUser && existingUser.isVerified) {
-      logger.warn(`Registration failed: Email ${email} already registered and verified.`);
-      return res.status(409).json({ error: 'Email already registered and verified.' });
+      logger.warn(
+        `Registration failed: Email ${email} already registered and verified.`
+      );
+      return res
+        .status(409)
+        .json({ error: "Email already registered and verified." });
     }
 
     const hashedPassword = await bcrypt.hash(password, 12);
@@ -38,37 +42,50 @@ export const register = async (req, res, next) => {
     }
 
     // Generate a 6-digit numeric verification code
-    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString(); // Strictly 6-digit numeric
-    
+    const verificationCode = Math.floor(
+      100000 + Math.random() * 900000
+    ).toString(); // Strictly 6-digit numeric
+
     // Hash the verification code before saving to the database
     const hashedVerificationToken = bcrypt.hashSync(verificationCode, 10);
-    
+
     user.verificationToken = hashedVerificationToken;
     // Set token to expire in 15 minutes
-    user.verificationTokenExpires = new Date(Date.now() + 15 * 60 * 1000); 
+    user.verificationTokenExpires = new Date(Date.now() + 15 * 60 * 1000);
 
     await user.save();
-    logger.info(`User ${user.email} saved to DB. Attempting to send verification email.`);
+    logger.info(
+      `User ${user.email} saved to DB. Attempting to send verification email.`
+    );
 
     // Send verification email (non-blocking)
-    sendVerificationEmail(user.email, verificationCode)
-      .catch(mailError => {
-        // Log the actual mailer error for debugging but don't block the user registration response
-        logger.error(`Error sending verification email to ${user.email}:`, mailError);
-        // Do not block registration on email failure, but log it.
-        // You might consider a separate retry mechanism for emails later.
-      });
+    sendVerificationEmail(user.email, verificationCode).catch((mailError) => {
+      // Log the actual mailer error for debugging but don't block the user registration response
+      logger.error(
+        `Error sending verification email to ${user.email}:`,
+        mailError
+      );
+      // Do not block registration on email failure, but log it.
+      // You might consider a separate retry mechanism for emails later.
+    });
 
     // Do NOT send JWT token here. User must verify email first.
     // Instead, inform the client that verification is needed.
-    res.status(201).json({ 
-      message: 'Registration successful. Please check your email for a verification code.',
-      userId: user._id // Optionally send userId to help with verification page
+    res.status(201).json({
+      message:
+        "Registration successful. Please check your email for a verification code.",
+      userId: user._id, // Optionally send userId to help with verification page
     });
   } catch (err) {
-    if (err.code === 11000) { // MongoDB duplicate key error (for unique email)
-      logger.error(`Registration failed: Email address ${req.body.email} already in use (MongoDB duplicate key error).`, err);
-      return res.status(409).json({ error: 'Email address is already in use.' });
+    if (err.code === 11000) {
+      // MongoDB duplicate key error (for unique email)
+      logger.error(
+        `Registration failed: Email address ${req.body.email} already in use (MongoDB duplicate key error).`,
+        err
+      );
+      return res
+        .status(409)
+        .json({ error: "Email address is already in use." });
     }
     logger.error(`Registration failed for ${req.body.email}:`, err);
     next(err); // Pass error to the next error handling middleware
@@ -77,47 +94,49 @@ export const register = async (req, res, next) => {
 
 export const login = async (req, res, next) => {
   try {
-        const { email, password } = req.body;
-        logger.info(`Attempting to log in user: ${email}`);
+    const { email, password } = req.body;
+    logger.info(`Attempting to log in user: ${email}`);
 
-        const user = await User.findOne({ email });
-        if (!user || !(await bcrypt.compare(password, user.password))) {
-            logger.warn(`Login failed for ${email}: Invalid credentials.`);
-            throw new Error('Invalid credentials');
-        }
-
-        // Prevent login if email is not verified
-        if (!user.isVerified) {
-            logger.warn(`Login failed for ${email}: Email not verified.`);
-            return res.status(403).json({ error: 'Please verify your email to log in.' });
-        }
-
-        const token = jwt.sign({ userId: user._id }, env.JWT_SECRET, { expiresIn: '1d' });
-
-        // --- CHANGES START HERE ---
-        // Determine if the cookie should be secure (i.e., sent over HTTPS only)
-        // const isSecure = env.NODE_ENV === 'production';
-        const isSecure = true;
-
-
-        // Set SameSite policy based on the environment and security needs.
-        // 'None' requires 'Secure' and allows cross-site cookies.
-        // 'Lax' is a good default but can sometimes cause issues with initial cross-site loads/redirects.
-        // Given your issue, 'None' is often necessary for explicit cross-origin behavior.
-        const sameSitePolicy = 'None'; // Explicitly 'None' for cross-site with credentials
-
-        res.cookie('token', token, {
-         httpOnly: true , secure: true, sameSite: 'none',   
-            path: '/' // Ensure the cookie is accessible across the entire domain
-        });
-        // --- CHANGES END HERE ---
-
-        logger.info(`User ${email} logged in successfully.`);
-        res.json({ user: { id: user._id, name: user.name, email, role: user.role, phoneNo: user.phone } }); // Include role
-    } catch (err) {
-        logger.error(`Login failed:`, err);
-        next(err); // Pass error to the next error handling middleware
+    const user = await User.findOne({ email });
+    if (!user || !(await bcrypt.compare(password, user.password))) {
+      logger.warn(`Login failed for ${email}: Invalid credentials.`);
+      throw new Error("Invalid credentials");
     }
+
+    // Prevent login if email is not verified
+    if (!user.isVerified) {
+      logger.warn(`Login failed for ${email}: Email not verified.`);
+      return res
+        .status(403)
+        .json({ error: "Please verify your email to log in." });
+    }
+
+    const token = jwt.sign({ userId: user._id }, env.JWT_SECRET, {
+      expiresIn: "1d",
+    });
+
+    const isProduction = env.NODE_ENV === "production";
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? "None" : "Lax",
+      path: "/",
+    });
+
+    logger.info(`User ${email} logged in successfully.`);
+    res.json({
+      user: {
+        id: user._id,
+        name: user.name,
+        email,
+        role: user.role,
+        phoneNo: user.phone,
+      },
+    }); // Include role
+  } catch (err) {
+    logger.error(`Login failed:`, err);
+    next(err); // Pass error to the next error handling middleware
+  }
 };
 
 /**
@@ -126,114 +145,124 @@ export const login = async (req, res, next) => {
  * @access Public (called internally by NextAuth.js)
  */
 export const googleLogin = async (req, res, next) => {
-    console.log("google login hit (email-based, compatible with current User model)");
-    try {
-        // Destructure email, name, and image from the request body.
-        // `image` will now be stored in the `profileImage` field in the model.
-        const { email, name, image } = req.body; 
+  console.log(
+    "google login hit (email-based, compatible with current User model)"
+  );
+  try {
+    // Destructure email, name, and image from the request body.
+    // `image` will now be stored in the `profileImage` field in the model.
+    const { email, name, image } = req.body;
 
-        // Basic validation: ensure email is present
-        if (!email) {
-            // Using a placeholder for logger if not imported for this snippet
-            console.warn('Google login failed: Missing email in request body.');
-            // logger.warn('Google login failed: Missing email in request body.');
-            return res.status(400).json({ error: 'Missing required Google user information (email).' });
-        }
-
-        console.info(`Attempting Google login for email: ${email}`);
-        // logger.info(`Attempting Google login for email: ${email}`);
-
-        // 1. Try to find user by email
-        let user = await User.findOne({ email });
-        console.log("User found/attempted to find by email:", user);
-
-        if (user) {
-            // Scenario A: User found by email (existing user)
-            console.info(`User found by email: ${user.email}. Logging in.`);
-            // logger.info(`User found by email: ${user.email}. Logging in.`);
-            
-            // Update user's name and profile image if Google provides newer information
-            user.name = name || user.name;
-            user.profileImage = image || user.profileImage; // This line now correctly stores to the model
-            
-            // If the user's email was not previously verified, mark it as verified now.
-            if (!user.isVerified) {
-                user.isVerified = true;
-                console.info(`Email ${user.email} marked as verified due to Google login.`);
-                // logger.info(`Email ${user.email} marked as verified due to Google login.`);
-            }
-            await user.save();
-
-        } else {
-            // Scenario B: No user found by email (new user via Google login)
-            console.info(`Creating new user for Google login: ${email}`);
-            // logger.info(`Creating new user for Google login: ${email}`);
-
-            // Since the 'password' field is `required: true` in your schema,
-            // we must create and store a hashed dummy password for new social users.
-            const dummyPassword = Math.random().toString(36).slice(-10) + Date.now(); // Generate a random string
-            const hashedPassword = await bcrypt.hash(dummyPassword, 10); // Hash the dummy password
-
-            user = new User({
-                name,
-                email,
-                password: hashedPassword, // Store the generated hashed dummy password
-                profileImage: image,     // This line now correctly stores the image
-                isVerified: true,        // Auto-verify for Google logins
-            });
-            await user.save();
-        }
-
-        // Generate JWT token for the user
-        const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1d' }); // Using process.env directly for example
-        console.log("Token created:", token);
-
-        // Set the token as a cookie
-        const isSecure = process.env.NODE_ENV === 'production';
-        res.cookie('token', token, {
-            httpOnly: true,
-            secure: isSecure, 
-            sameSite: 'None', 
-            path: '/'
-        });
-
-        console.log("Cookies sent to frontend");
-        console.info(`Google login successful for user: ${user.email}.`);
-        // logger.info(`Google login successful for user: ${user.email}.`);
-        res.status(200).json({
-            message: 'Google login successful.',
-            user: {
-                id: user._id,
-                name: user.name,
-                email: user.email,
-                role: user.role, 
-                phoneNo: user.phone, 
-                isVerified: user.isVerified,
-                profileImage: user.profileImage, // Now correctly returned in response
-            },
-            token, 
-        });
-
-    } catch (err) {
-        console.error(`Error during Google login for ${req.body?.email || 'unknown user'}:`, err);
-        // logger.error(`Error during Google login for ${req.body?.email || 'unknown user'}:`, err);
-        // Handle MongoDB duplicate key error if email is unique in your User model
-        if (err.code === 11000 && err.keyValue?.email) { 
-            return res.status(409).json({ error: 'A user with this email already exists.' });
-        }
-        next(err); 
+    // Basic validation: ensure email is present
+    if (!email) {
+      // Using a placeholder for logger if not imported for this snippet
+      console.warn("Google login failed: Missing email in request body.");
+      // logger.warn('Google login failed: Missing email in request body.');
+      return res
+        .status(400)
+        .json({ error: "Missing required Google user information (email)." });
     }
+
+    console.info(`Attempting Google login for email: ${email}`);
+    // logger.info(`Attempting Google login for email: ${email}`);
+
+    // 1. Try to find user by email
+    let user = await User.findOne({ email });
+    console.log("User found/attempted to find by email:", user);
+
+    if (user) {
+      // Scenario A: User found by email (existing user)
+      console.info(`User found by email: ${user.email}. Logging in.`);
+      // logger.info(`User found by email: ${user.email}. Logging in.`);
+
+      // Update user's name and profile image if Google provides newer information
+      user.name = name || user.name;
+      user.profileImage = image || user.profileImage; // This line now correctly stores to the model
+
+      // If the user's email was not previously verified, mark it as verified now.
+      if (!user.isVerified) {
+        user.isVerified = true;
+        console.info(
+          `Email ${user.email} marked as verified due to Google login.`
+        );
+        // logger.info(`Email ${user.email} marked as verified due to Google login.`);
+      }
+      await user.save();
+    } else {
+      // Scenario B: No user found by email (new user via Google login)
+      console.info(`Creating new user for Google login: ${email}`);
+      // logger.info(`Creating new user for Google login: ${email}`);
+
+      // Since the 'password' field is `required: true` in your schema,
+      // we must create and store a hashed dummy password for new social users.
+      const dummyPassword = Math.random().toString(36).slice(-10) + Date.now(); // Generate a random string
+      const hashedPassword = await bcrypt.hash(dummyPassword, 10); // Hash the dummy password
+
+      user = new User({
+        name,
+        email,
+        password: hashedPassword, // Store the generated hashed dummy password
+        profileImage: image, // This line now correctly stores the image
+        isVerified: true, // Auto-verify for Google logins
+      });
+      await user.save();
+    }
+
+    // Generate JWT token for the user
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+      expiresIn: "1d",
+    }); // Using process.env directly for example
+    console.log("Token created:", token);
+
+    // Set the token as a cookie
+    const isProduction = env.NODE_ENV === "production";
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? "None" : "Lax",
+      path: "/",
+    });
+
+    console.log("Cookies sent to frontend");
+    console.info(`Google login successful for user: ${user.email}.`);
+    // logger.info(`Google login successful for user: ${user.email}.`);
+    res.status(200).json({
+      message: "Google login successful.",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        phoneNo: user.phone,
+        isVerified: user.isVerified,
+        profileImage: user.profileImage, // Now correctly returned in response
+      },
+      token,
+    });
+  } catch (err) {
+    console.error(
+      `Error during Google login for ${req.body?.email || "unknown user"}:`,
+      err
+    );
+    // logger.error(`Error during Google login for ${req.body?.email || 'unknown user'}:`, err);
+    // Handle MongoDB duplicate key error if email is unique in your User model
+    if (err.code === 11000 && err.keyValue?.email) {
+      return res
+        .status(409)
+        .json({ error: "A user with this email already exists." });
+    }
+    next(err);
+  }
 };
 
-
 export const logout = (req, res) => {
-  logger.info('User attempting to log out.');
-  res.clearCookie('token', {
+  logger.info("User attempting to log out.");
+  res.clearCookie("token", {
     httpOnly: true,
-    secure: env.NODE_ENV === 'production',
-    SameSite: 'None'
+    secure: env.NODE_ENV === "production",
+    SameSite: "None",
   });
-  res.json({ message: 'Logged out' });
+  res.json({ message: "Logged out" });
 };
 
 /**
@@ -249,27 +278,39 @@ export const verifyEmail = async (req, res, next) => {
     const user = await User.findOne({ email });
 
     if (!user) {
-      logger.warn(`Email verification failed: User not found for email ${email}.`);
-      return res.status(404).json({ error: 'User not found.' });
+      logger.warn(
+        `Email verification failed: User not found for email ${email}.`
+      );
+      return res.status(404).json({ error: "User not found." });
     }
-    logger.info(`User found for verification: ${user.email}, isVerified: ${user.isVerified}`); // Debugging: user status
+    logger.info(
+      `User found for verification: ${user.email}, isVerified: ${user.isVerified}`
+    ); // Debugging: user status
 
     if (user.isVerified) {
       logger.warn(`Email verification failed for ${email}: Already verified.`);
-      return res.status(400).json({ error: 'Email already verified.' });
+      return res.status(400).json({ error: "Email already verified." });
     }
 
     // CORRECTED: Call compareVerificationToken as an instance method on the 'user' object
-    const isCodeValid = await user.compareVerificationToken(code); 
-    logger.info(`Verification code comparison result for ${email}: ${isCodeValid}`); // Debugging: comparison result
+    const isCodeValid = await user.compareVerificationToken(code);
+    logger.info(
+      `Verification code comparison result for ${email}: ${isCodeValid}`
+    ); // Debugging: comparison result
 
     // Check for token expiry
     const isTokenExpired = user.verificationTokenExpires < Date.now();
-    logger.info(`Token expiry status for ${email}: Expired: ${isTokenExpired}, Expiry Date: ${user.verificationTokenExpires}`); // Debugging: expiry status
+    logger.info(
+      `Token expiry status for ${email}: Expired: ${isTokenExpired}, Expiry Date: ${user.verificationTokenExpires}`
+    ); // Debugging: expiry status
 
     if (!isCodeValid || isTokenExpired) {
-      logger.warn(`Email verification failed for ${email}: Invalid or expired code. Valid: ${isCodeValid}, Expired: ${isTokenExpired}`);
-      return res.status(400).json({ error: 'Invalid or expired verification code.' });
+      logger.warn(
+        `Email verification failed for ${email}: Invalid or expired code. Valid: ${isCodeValid}, Expired: ${isTokenExpired}`
+      );
+      return res
+        .status(400)
+        .json({ error: "Invalid or expired verification code." });
     }
 
     // Mark user as verified and clear verification token fields
@@ -279,7 +320,7 @@ export const verifyEmail = async (req, res, next) => {
     await user.save();
     logger.info(`Email ${email} verified successfully. User data updated.`); // Debugging: success
 
-    res.json({ message: 'Email verified successfully!' });
+    res.json({ message: "Email verified successfully!" });
   } catch (err) {
     logger.error(`Email verification failed:`, err);
     next(err); // Pass error to the next error handling middleware
@@ -299,69 +340,85 @@ export const resendVerificationCode = async (req, res, next) => {
     const user = await User.findOne({ email });
 
     if (!user) {
-      logger.warn(`Resend verification failed: User not found for email ${email}.`);
-      return res.status(404).json({ error: 'User not found.' });
+      logger.warn(
+        `Resend verification failed: User not found for email ${email}.`
+      );
+      return res.status(404).json({ error: "User not found." });
     }
 
     if (user.isVerified) {
-      logger.warn(`Resend verification failed for ${email}: Email already verified.`);
-      return res.status(400).json({ error: 'Email already verified.' });
+      logger.warn(
+        `Resend verification failed for ${email}: Email already verified.`
+      );
+      return res.status(400).json({ error: "Email already verified." });
     }
 
     // Generate a new verification code
-    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString(); // Strictly 6-digit numeric
+    const verificationCode = Math.floor(
+      100000 + Math.random() * 900000
+    ).toString(); // Strictly 6-digit numeric
     const hashedVerificationToken = bcrypt.hashSync(verificationCode, 10);
-    
+
     user.verificationToken = hashedVerificationToken;
     user.verificationTokenExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes expiry
     await user.save();
-    logger.info(`New verification token generated and saved for ${email}. Attempting to resend email.`);
+    logger.info(
+      `New verification token generated and saved for ${email}. Attempting to resend email.`
+    );
 
     // Send verification email
     await sendVerificationEmail(user.email, verificationCode);
 
-    res.json({ message: 'New verification code sent to your email.' });
+    res.json({ message: "New verification code sent to your email." });
   } catch (err) {
-    logger.error(`Error resending verification email to ${req.body.email}:`, err);
+    logger.error(
+      `Error resending verification email to ${req.body.email}:`,
+      err
+    );
     // Be specific with the error message for the user if it's a known failure
-    next(new Error('Failed to resend verification code. Please try again later.'));
+    next(
+      new Error("Failed to resend verification code. Please try again later.")
+    );
   }
 };
-
 
 /**
  * @desc Check user authentication status
  * @route GET /api/auth/status
  * @access Private (will only succeed if authenticated)
  */
-export const getAuthStatus = async (req, res, next) => { // Made async and added next for error handling
+export const getAuthStatus = async (req, res, next) => {
+  // Made async and added next for error handling
   try {
     // If this controller is reached, it means the `authenticate` middleware passed,
     // indicating the user is logged in via their JWT cookie.
     // Fetch full user details from DB
-    const user = await User.findById(req.userId).select('-password -verificationToken -verificationTokenExpires'); 
-    
+    const user = await User.findById(req.userId).select(
+      "-password -verificationToken -verificationTokenExpires"
+    );
+
     if (!user) {
       logger.warn(`Auth status check: User not found for ID ${req.userId}.`);
-      return res.status(404).json({ loggedIn: false, error: 'User not found.' });
+      return res
+        .status(404)
+        .json({ loggedIn: false, error: "User not found." });
     }
-    
+
     logger.info(`Auth status for user ${user.email}: loggedIn: true`);
-    res.status(200).json({ 
-      loggedIn: true, 
-      id: user._id, 
-      name: user.name, 
-      email: user.email, 
+    res.status(200).json({
+      loggedIn: true,
+      id: user._id,
+      name: user.name,
+      email: user.email,
       role: user.role,
       isVerified: user.isVerified,
-      phone: user.phone 
+      phone: user.phone,
     });
   } catch (error) {
     logger.error(`Error during getAuthStatus for userId ${req.userId}:`, error);
     next(error);
   }
 };
-
 
 /**
  * @desc Update user profile information
@@ -376,15 +433,20 @@ export const updateUserProfile = async (req, res, next) => {
     // Optional: Add a check to ensure the authenticated user is only updating their own profile.
     // This is a crucial security measure. req.userId comes from your authentication middleware.
     if (req.userId && req.userId !== id) {
-      logger.warn(`Unauthorized attempt to update user profile: User ${req.userId} tried to modify ${id}.`);
-      throw new CustomError('Unauthorized: You can only update your own profile.', 403);
+      logger.warn(
+        `Unauthorized attempt to update user profile: User ${req.userId} tried to modify ${id}.`
+      );
+      throw new CustomError(
+        "Unauthorized: You can only update your own profile.",
+        403
+      );
     }
 
     const user = await User.findById(id); // Use the ID from params
 
     if (!user) {
       logger.warn(`User profile update failed: User not found for ID ${id}.`);
-      throw new CustomError('User not found.', 404);
+      throw new CustomError("User not found.", 404);
     }
 
     const { name, phone } = req.body;
@@ -400,37 +462,37 @@ export const updateUserProfile = async (req, res, next) => {
     }
 
     // Only save if any field has changed
-    if (user.isModified('name') || user.isModified('phone')) {
+    if (user.isModified("name") || user.isModified("phone")) {
       await user.save();
       logger.info(`User ${user.email} profile updated successfully.`);
       res.status(200).json({
-        message: 'Profile updated successfully',
+        message: "Profile updated successfully",
         user: {
           id: user._id,
           name: user.name,
           email: user.email,
           phone: user.phone,
-          role: user.role // Include role in response
-        }
+          role: user.role, // Include role in response
+        },
       });
     } else {
       logger.info(`No changes detected for user ${user.email} profile.`);
       res.status(200).json({
-        message: 'No changes to update', user: {
+        message: "No changes to update",
+        user: {
           id: user._id,
           name: user.name,
           email: user.email,
           phone: user.phone,
-          role: user.role
-        }
+          role: user.role,
+        },
       });
     }
-
   } catch (error) {
     logger.error(`Error updating user profile for ID ${req.params.id}:`, error); // Log the ID from params
-    if (error.name === 'ValidationError') {
-      const messages = Object.values(error.errors).map(val => val.message);
-      return next(new CustomError(messages.join(', '), 400));
+    if (error.name === "ValidationError") {
+      const messages = Object.values(error.errors).map((val) => val.message);
+      return next(new CustomError(messages.join(", "), 400));
     }
     next(error); // Pass error to the next error handling middleware
   }
@@ -441,31 +503,32 @@ export const updateUserProfile = async (req, res, next) => {
 //  * @access Private (e.g., only authenticated users can view others' profiles)
 //  */
 export const getUserDetailsById = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    logger.info(`Attempting to fetch user details for ID: ${id}`);
+  try {
+    const { id } = req.params;
+    logger.info(`Attempting to fetch user details for ID: ${id}`); // Find user by ID, selecting only relevant fields
 
-    // Find user by ID, selecting only relevant fields
-    const user = await User.findById(id).select('-password -verificationToken -verificationTokenExpires');
+    const user = await User.findById(id).select(
+      "-password -verificationToken -verificationTokenExpires"
+    );
 
-    if (!user) {
-      logger.warn(`User details fetch failed: User not found for ID ${id}.`);
-      return res.status(404).json({ error: 'User not found.' });
-    }
+    if (!user) {
+      logger.warn(`User details fetch failed: User not found for ID ${id}.`);
+      return res.status(404).json({ error: "User not found." });
+    }
 
-    logger.info(`User details fetched successfully for ID: ${id}.`);
-    res.status(200).json({ 
-      user: { 
-        id: user._id, 
-        name: user.name, 
-        email: user.email, 
-        phone: user.phone,
-        role: user.role,
-        isVerified: user.isVerified
-      } 
-    });
-  } catch (error) {
-    logger.error(`Error fetching user details for ID ${req.params.id}:`, error);
-    next(error); // Pass error to the next error handling middleware
-  }
+    logger.info(`User details fetched successfully for ID: ${id}.`);
+    res.status(200).json({
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        isVerified: user.isVerified,
+      },
+    });
+  } catch (error) {
+    logger.error(`Error fetching user details for ID ${req.params.id}:`, error);
+    next(error); // Pass error to the next error handling middleware
+  }
 };
