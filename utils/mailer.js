@@ -117,7 +117,7 @@ export const sendOrderConfirmationEmail = async (order) => {
       ${order.shippingAddress.line2 ? `<p>${order.shippingAddress.line2} ,</p>` : ''}
       <p>${order.shippingAddress.city}, ${order.shippingAddress.state} - ${order.shippingAddress.zip}</p>
       <p>${order.shippingAddress.country}</p>
-      <p>You can view your order details anytime by logging into your account and visiting your <a href="${env.CLIENT_URL}/myorders" style="color: #E30B5D; text-decoration: none;">My Orders</a> page.</p>
+      <p>You can view your order details anytime by logging into your account and visiting your <a href="${env.CLIENT_URL}/account" style="color: #E30B5D; text-decoration: none;">My Orders</a> page.</p>
       
       <p>Thank you for shopping with flame&crumble!</p>
       <p>Best regards,</p>
