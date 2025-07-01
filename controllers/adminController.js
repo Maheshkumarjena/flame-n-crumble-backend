@@ -94,8 +94,9 @@ export const createProduct = async (req, res, next) => {
   try {
     // Multer will populate req.body with text fields and req.file with file info
     const { name, description, price, category, stock, bestseller, isNew , image } = req.body;
-    const imagePath = req.file ? `/images/${req.file.filename}` : ''; // Store relative path
 
+    console.log('req.body=======================================>', req.body);
+    console.log("description at createProduct:", description);
     const product = new Product({
       name,
       description,
@@ -103,10 +104,11 @@ export const createProduct = async (req, res, next) => {
       category,
       stock: parseInt(stock),   // Ensure numbers are parsed
       image: image,
-      bestseller: bestseller === 'true', // Convert string 'true'/'false' to boolean
-      isNew: isNew === 'true',           // Convert string 'true'/'false' to boolean
+      bestseller: bestseller == true, // Convert string 'true'/'false' to boolean
+      isNew: isNew == true,           // Convert string 'true'/'false' to boolean
     });
 
+    console.log('Creating product---------------------------->', product);
     await product.save();
     
     // Invalidate the cache for all products so the new product appears
@@ -157,8 +159,8 @@ export const updateProduct = async (req, res, next) => {
     product.price = parseFloat(price);
     product.category = category;
     product.stock = parseInt(stock);
-    product.bestseller = bestseller === 'true';
-    product.isNew = isNew === 'true';
+    product.bestseller = bestseller == true;
+    product.isNew = isNew == true;
     
 
     // Handle image update logic
