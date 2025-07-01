@@ -35,7 +35,7 @@ export const createOrder = async (req, res, next) => {
       return sum + (item.product ? item.product.price * item.quantity : 0);
     }, 0);
 
-    const deliveryCharge = 50;
+    const deliveryCharge = 250;
     total += deliveryCharge; // Add delivery charge to the total
 
     // First, create the database order to get its _id

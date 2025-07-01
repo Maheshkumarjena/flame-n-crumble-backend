@@ -113,6 +113,8 @@ export const sendOrderConfirmationEmail = async (order) => {
       </ul>
 
       <h4>Shipping Address:</h4>
+      <p>${order.shippingAddress.line1} ,</p>
+      ${order.shippingAddress.line2 ? `<p>${order.shippingAddress.line2} ,</p>` : ''}
       <p>${order.shippingAddress.city}, ${order.shippingAddress.state} - ${order.shippingAddress.zip}</p>
       <p>${order.shippingAddress.country}</p>
       <p>You can view your order details anytime by logging into your account and visiting your <a href="${env.CLIENT_URL}/myorders" style="color: #E30B5D; text-decoration: none;">My Orders</a> page.</p>
@@ -167,5 +169,43 @@ export const sendOrderConfirmationEmail = async (order) => {
   } catch (error) {
     logger.error(`Failed to send order confirmation email to ${order.user.email} for order ${order._id}:`, error);
     // Do not re-throw here as webhook should ideally succeed even if email fails
+  }
+};
+
+export const sendContactFormEmail = async ({ name, email, subject, message }) => {
+  const mailOptions = {
+    from: `flame&crumble <${env.EMAIL_FROM}>`, // Must be verified in Brevo
+    to: 'flameandcrumble@gmail.com',
+    subject: `New Contact Form Message: ${subject}`,
+    text: `
+      You've received a new message via the contact form:
+
+      Name: ${name}
+      Email: ${email}
+      Subject: ${subject}
+
+      Message:
+      ${message}
+    `,
+    html: `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+        <h2>New Contact Form Message</h2>
+        <p><strong>Name:</strong> ${name}</p>
+        <p><strong>Email:</strong> <a href="mailto:${email}">${email}</a></p>
+        <p><strong>Subject:</strong> ${subject}</p>
+        <p><strong>Message:</strong></p>
+        <p style="white-space: pre-line; background-color: #f9f9f9; padding: 10px; border-left: 3px solid #E30B5D;">
+          ${message}
+        </p>
+      </div>
+    `
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    logger.info(`Contact form message from ${email} sent to flameandcrumble@gmail.com`);
+  } catch (error) {
+    logger.error(`Failed to send contact form message from ${email}:`, error);
+    throw new Error('Failed to send contact form email. Please try again later.');
   }
 };

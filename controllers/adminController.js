@@ -5,6 +5,8 @@ import { redisClient } from '../utils/cache.js';
 import fs from 'fs'; // For file system operations (deleting old images)
 import path from 'path'; // For path manipulation
 import { fileURLToPath } from 'url'; // For ES Modules path resolution
+import { sendContactFormEmail } from '../utils/mailer.js';
+// import sendCorporateContactFormEmail from '../utils/sendCorporateContactFormEmail.js';
 
 const PRODUCTS_CACHE_KEY = 'products'; 
 const USERS_CACHE_KEY = 'users'; // New cache key for all users
@@ -337,3 +339,47 @@ export const deleteUser = async (req, res, next) => {
     next(error);
   }
 };
+
+
+export const contactAdmin = async (req, res, ) =>{
+
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const { name, email, subject, message } = req.body;
+
+  if (!name || !email || !subject || !message) {
+    return res.status(400).json({ error: 'All fields are required' });
+  }
+
+  try {
+    await sendContactFormEmail({ name, email, subject, message });
+    return res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('Contact form error:', error);
+    return res.status(500).json({ error: error.message || 'Something went wrong' });
+  }
+
+}
+
+
+export const coporateContactAdmin = async (req, res) => {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const { name, email, message } = req.body;
+
+  if (!name || !email ||  !message) {
+    return res.status(400).json({ error: 'All fields are required' });
+  }
+
+  try {
+    await sendCorporateContactFormEmail({ name, email, message });
+    return res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('Corporate contact form error:', error);
+    return res.status(500).json({ error: error.message || 'Something went wrong' });
+  }
+}

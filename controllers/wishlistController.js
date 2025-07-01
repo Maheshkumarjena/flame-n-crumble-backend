@@ -23,7 +23,7 @@ export const getWishlist = async (req, res, next) => {
       return res.json({ items: [] });
     }
 
-    await redisClient.setEx(cacheKey, 3600, JSON.stringify(wishlist)); // Cache for 1h
+    await redisClient.setEx(cacheKey, 600, JSON.stringify(wishlist)); // Cache for 1h
     res.json(wishlist);
   } catch (err) {
     next(err);
