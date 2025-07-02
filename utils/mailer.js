@@ -43,18 +43,59 @@ transporter.verify(function (error, success) {
 export const sendVerificationEmail = async (to, code) => {
   const subject = 'flame&crumble: Email Verification Code';
   const html = `
-    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-      <h2>Email Verification</h2>
-      <p>Thank you for registering with flame&crumble!</p>
-      <p>Please use the following code to verify your email address:</p>
-      <h3 style="background-color: #f0f0f0; padding: 10px; border-radius: 5px; display: inline-block; letter-spacing: 2px;">
+  <div style="font-family: 'Poppins', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
+  <!-- Header with brand colors -->
+  <div style="background: linear-gradient(to right, #fda4af, #fb7185); padding: 30px 20px; text-align: center;">
+    <h1 style="margin: 0; font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 700; color: white;">
+      <span style="color: #fecdd3">flame</span>&<span style="color: #fecdd3">crumble</span>
+    </h1>
+  </div>
+  
+  <!-- Content -->
+  <div style="padding: 30px;">
+    <h2 style="font-family: 'Playfair Display', serif; font-size: 24px; color: #111827; margin-top: 0; margin-bottom: 20px;">
+      Email Verification
+    </h2>
+    
+    <p style="font-size: 16px; color: #4b5563; margin-bottom: 20px;">
+      Thank you for registering with flame&crumble! We're excited to have you join our community of artisanal delight lovers.
+    </p>
+    
+    <p style="font-size: 16px; color: #4b5563; margin-bottom: 10px;">
+      Please use the following verification code:
+    </p>
+    
+    <div style="background-color: #fff1f2; border: 1px solid #fda4af; border-radius: 8px; padding: 16px; text-align: center; margin: 25px 0; display: inline-block;">
+      <h3 style="margin: 0; font-family: 'Playfair Display', serif; font-size: 28px; color: #e11d48; letter-spacing: 4px;">
         ${code}
       </h3>
-      <p>This code is valid for 15 minutes.</p>
-      <p>If you did not request this, please ignore this email.</p>
-      <p>Best regards,</p>
-      <p>The flame&crumble Team</p>
     </div>
+    
+    <p style="font-size: 14px; color: #9ca3af; margin-bottom: 25px;">
+      This code is valid for 15 minutes.
+    </p>
+    
+    <div style="background-color: #f8fafc; border-radius: 8px; padding: 16px; margin: 30px 0;">
+      <p style="font-size: 14px; color: #64748b; margin: 0;">
+        If you didn't request this verification, please ignore this email or contact our support team if you have any concerns.
+      </p>
+    </div>
+    
+    <p style="font-size: 16px; color: #4b5563; margin-bottom: 5px;">
+      With warm regards,
+    </p>
+    <p style="font-size: 16px; color: #4b5563; margin-top: 0; font-weight: 600;">
+      The flame&crumble Team
+    </p>
+  </div>
+  
+  <!-- Footer -->
+  <div style="background: #f8fafc; padding: 20px; text-align: center; border-top: 1px solid #e2e8f0;">
+    <p style="font-size: 12px; color: #94a3b8; margin: 0;">
+      © 2023 flame&crumble | Handcrafted Delights
+    </p>
+  </div>
+</div>
   `;
   const text = `
     Email Verification for flame&crumble\n\n
@@ -97,32 +138,88 @@ export const sendOrderConfirmationEmail = async (order) => {
   `).join('');
 
   const html = `
-    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-      <h2>Thank You for Your Order!</h2>
-      <p>Hi ${order.user.name},</p>
-      <p>Your order with flame&crumble has been successfully placed and paid for. We're getting it ready!</p>
-      
-      <h3 style="color: #E30B5D;">Order #${order._id.toString().slice(-6).toUpperCase()}</h3>
-      <p><strong>Order Date:</strong> ${new Date(order.createdAt).toLocaleDateString()}</p>
-      <p><strong>Payment Status:</strong> Paid</p>
-      <p><strong>Total Amount:</strong> ₹${order.total.toFixed(2)}</p>
-
-      <h4>Order Summary:</h4>
-      <ul style="list-style-type: none; padding: 0;">
-        ${orderItemsHtml}
-      </ul>
-
-      <h4>Shipping Address:</h4>
-      <p>${order.shippingAddress.line1} ,</p>
-      ${order.shippingAddress.line2 ? `<p>${order.shippingAddress.line2} ,</p>` : ''}
-      <p>${order.shippingAddress.city}, ${order.shippingAddress.state} - ${order.shippingAddress.zip}</p>
-      <p>${order.shippingAddress.country}</p>
-      <p>You can view your order details anytime by logging into your account and visiting your <a href="${env.CLIENT_URL}/account" style="color: #E30B5D; text-decoration: none;">My Orders</a> page.</p>
-      
-      <p>Thank you for shopping with flame&crumble!</p>
-      <p>Best regards,</p>
-      <p>The flame&crumble Team</p>
+    <div style="font-family: 'Poppins', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
+  <!-- Header with brand colors -->
+  <div style="background: linear-gradient(to right, #fda4af, #fb7185); padding: 30px 20px; text-align: center;">
+    <h1 style="margin: 0; font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 700; color: white;">
+      <span style="color: #fecdd3">flame</span>&<span style="color: #fecdd3">crumble</span>
+    </h1>
+    <p style="color: white; font-size: 18px; margin: 8px 0 0;">Order Confirmation</p>
+  </div>
+  
+  <!-- Content -->
+  <div style="padding: 30px;">
+    <div style="background: #fff1f2; border-radius: 8px; padding: 20px; margin-bottom: 25px;">
+      <p style="font-size: 16px; color: #4b5563; margin: 0 0 10px;">Hi ${order.user.name},</p>
+      <p style="font-size: 16px; color: #4b5563; margin: 0;">Your order has been confirmed and we're preparing it with care!</p>
     </div>
+
+    <!-- Order Summary Card -->
+    <div style="border: 1px solid #fecdd3; border-radius: 10px; padding: 0; overflow: hidden; margin-bottom: 25px;">
+      <div style="background: #fff1f2; padding: 15px 20px;">
+        <h2 style="font-family: 'Playfair Display', serif; font-size: 20px; color: #111827; margin: 0;">
+          Order #${order._id.toString().slice(-6).toUpperCase()}
+        </h2>
+      </div>
+      <div style="padding: 20px;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+          <span style="color: #64748b;">Order Date : </span>
+          <span style="font-weight: 500;">${new Date(order.createdAt).toLocaleDateString()}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+          <span style="color: #64748b;">Payment Status : </span>
+          <span style="color: #10b981; font-weight: 500;">Paid</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+          <span style="color: #64748b;">Total Amount : </span>
+          <span style="font-weight: 700; color: #e11d48;">₹${order.total.toFixed(2)}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Order Items -->
+    <h3 style="font-family: 'Playfair Display', serif; font-size: 18px; color: #111827; margin-bottom: 15px; border-bottom: 1px solid #f3f4f6; padding-bottom: 8px;">
+      Your Items
+    </h3>
+    <div style="margin-bottom: 25px;">
+      ${orderItemsHtml}
+    </div>
+
+    <!-- Shipping Address -->
+    <h3 style="font-family: 'Playfair Display', serif; font-size: 18px; color: #111827; margin-bottom: 15px; border-bottom: 1px solid #f3f4f6; padding-bottom: 8px;">
+      Shipping To
+    </h3>
+    <div style="background: #f8fafc; border-radius: 8px; padding: 16px; margin-bottom: 25px;">
+      <p style="margin: 0 0 8px; font-weight: 500;">${order.shippingAddress.line1}</p>
+      ${order.shippingAddress.line2 ? `<p style="margin: 0 0 8px;">${order.shippingAddress.line2}</p>` : ''}
+      <p style="margin: 0 0 8px;">${order.shippingAddress.city}, ${order.shippingAddress.state} - ${order.shippingAddress.zip}</p>
+      <p style="margin: 0;">${order.shippingAddress.country}</p>
+    </div>
+
+    <!-- CTA -->
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="${env.CLIENT_URL}/account" style="background: #fb7185; color: white; text-decoration: none; padding: 12px 24px; border-radius: 50px; font-weight: 500; display: inline-block; transition: all 0.3s ease;" 
+         onmouseover="this.style.background='#e11d48'" 
+         onmouseout="this.style.background='#fb7185'">
+        View Your Order
+      </a>
+    </div>
+
+    <p style="font-size: 16px; color: #4b5563; text-align: center; margin-bottom: 5px;">
+      Thank you for choosing flame&crumble!
+    </p>
+    <p style="font-size: 14px; color: #9ca3af; text-align: center; margin-top: 0;">
+      We appreciate your support of our handcrafted delights.
+    </p>
+  </div>
+  
+  <!-- Footer -->
+  <div style="background: #f8fafc; padding: 20px; text-align: center; border-top: 1px solid #e2e8f0;">
+    <p style="font-size: 12px; color: #94a3b8; margin: 0;">
+      © ${new Date().getFullYear()} flame&crumble | Handcrafted Delights
+    </p>
+  </div>
+</div>
   `;
 
   const text = `
@@ -172,40 +269,3 @@ export const sendOrderConfirmationEmail = async (order) => {
   }
 };
 
-export const sendContactFormEmail = async ({ name, email, subject, message }) => {
-  const mailOptions = {
-    from: `flame&crumble <${env.EMAIL_FROM}>`, // Must be verified in Brevo
-    to: 'flameandcrumble@gmail.com',
-    subject: `New Contact Form Message: ${subject}`,
-    text: `
-      You've received a new message via the contact form:
-
-      Name: ${name}
-      Email: ${email}
-      Subject: ${subject}
-
-      Message:
-      ${message}
-    `,
-    html: `
-      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-        <h2>New Contact Form Message</h2>
-        <p><strong>Name:</strong> ${name}</p>
-        <p><strong>Email:</strong> <a href="mailto:${email}">${email}</a></p>
-        <p><strong>Subject:</strong> ${subject}</p>
-        <p><strong>Message:</strong></p>
-        <p style="white-space: pre-line; background-color: #f9f9f9; padding: 10px; border-left: 3px solid #E30B5D;">
-          ${message}
-        </p>
-      </div>
-    `
-  };
-
-  try {
-    await transporter.sendMail(mailOptions);
-    logger.info(`Contact form message from ${email} sent to flameandcrumble@gmail.com`);
-  } catch (error) {
-    logger.error(`Failed to send contact form message from ${email}:`, error);
-    throw new Error('Failed to send contact form email. Please try again later.');
-  }
-};
