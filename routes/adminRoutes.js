@@ -10,8 +10,9 @@ import {
   deleteUser,
   
 } from '../controllers/adminController.js';
+
 import { authenticate, isAdmin } from '../middleware/auth.js';
-import multer from 'multer';
+
 // import upload from '../utils/Cloudinary.js'; // Assuming you have a Cloudinary setup for image uploads
 
 
@@ -21,7 +22,7 @@ const router = express.Router();
 router.use(authenticate, isAdmin);
 
 router.get('/dashboard',  getDashboardStats);
-router.patch('/orders/:orderId',  updateOrderStatus);
+router.put('/orders/:orderId',  updateOrderStatus);
 
 
 // Product Management
@@ -32,6 +33,8 @@ router.delete('/products/:productId', deleteProduct); // Route for deleting a pr
 router.get('/users',getAllUsers)
 router.patch('/users/:userId/role',updateUserRole)
 router.delete('/users/:userId',deleteUser)
+router.patch('/update/:orderId', updateOrderStatus); // Assuming this is for updating an order
+
 
 
 export default router;

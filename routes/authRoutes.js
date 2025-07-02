@@ -5,9 +5,12 @@ import { getUserDetailsById,
   getAuthStatus,
   register, 
   login, 
-  logout, 
+  logout,
   verifyEmail, // New import
   resendVerificationCode // New import
+  , forgetPassword,
+  passwordResetVerification,
+  resetPassword
 } from '../controllers/authController.js';
 import { validateRegister, validateLogin } from '../middleware/validation.js';
 import { apiLimiter } from '../middleware/rateLimit.js'; // Import rate limiter
@@ -25,6 +28,10 @@ router.post('/resend-verification', apiLimiter, resendVerificationCode); // New 
 router.get('/status', authenticate, getAuthStatus); // New route
 router.get('/:id', apiLimiter, getUserDetailsById); // New route for resending code
 router.put('/me/:id', apiLimiter,updateUserProfile ); // New route for resending code
+
+router.post('/forgot-password',   forgetPassword );
+router.post('/verify-reset-code',   passwordResetVerification );
+router.post('/reset-password', resetPassword ); // New route for resetting password
 
 // routes/authRoutes.js (Add this new route)
 

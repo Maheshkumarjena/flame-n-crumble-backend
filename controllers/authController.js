@@ -93,11 +93,16 @@ export const register = async (req, res, next) => {
 };
 
 export const login = async (req, res, next) => {
+      let user;
+
+  console.log(
+    "login controller reached-----------------------------------------------------------------------------"
+  );
   try {
     const { email, password } = req.body;
     logger.info(`Attempting to log in user: ${email}`);
 
-    const user = await User.findOne({ email });
+    user = await User.findOne({ email });
     if (!user || !(await bcrypt.compare(password, user.password))) {
       logger.warn(`Login failed for ${email}: Invalid credentials.`);
       throw new Error("Invalid credentials");
@@ -106,6 +111,34 @@ export const login = async (req, res, next) => {
     // Prevent login if email is not verified
     if (!user.isVerified) {
       logger.warn(`Login failed for ${email}: Email not verified.`);
+      // Generate a 6-digit numeric verification code
+      const verificationCode = Math.floor(
+        100000 + Math.random() * 900000
+      ).toString(); // Strictly 6-digit numeric
+
+      // Hash the verification code before saving to the database
+      const hashedVerificationToken = bcrypt.hashSync(verificationCode, 10);
+
+      user.verificationToken = hashedVerificationToken;
+      // Set token to expire in 15 minutes
+      user.verificationTokenExpires = new Date(Date.now() + 15 * 60 * 1000);
+
+      await user.save();
+      logger.info(
+        `User ${user.email} saved to DB. Attempting to send verification email.`
+      );
+
+      // Send verification email (non-blocking)
+      sendVerificationEmail(user.email, verificationCode).catch((mailError) => {
+        // Log the actual mailer error for debugging but don't block the user registration response
+        logger.error(
+          `Error sending verification email to ${user.email}:`,
+          mailError
+        );
+        // Do not block registration on email failure, but log it.
+        // You might consider a separate retry mechanism for emails later.
+      });
+
       return res
         .status(403)
         .json({ error: "Please verify your email to log in." });
@@ -115,6 +148,7 @@ export const login = async (req, res, next) => {
       expiresIn: "1d",
     });
 
+    logger.info(`JWT token created for user ${email}: ${token}`);
     const isProduction = env.NODE_ENV === "production";
     res.cookie("token", token, {
       httpOnly: true,
@@ -532,3 +566,124 @@ export const getUserDetailsById = async (req, res, next) => {
     next(error); // Pass error to the next error handling middleware
   }
 };
+
+
+
+export const forgetPassword=async(req, res)=> {
+  console.log("forget password triggered")
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  try {
+    const { email } = req.body;
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      console.log("Password reset requested for non-existent email: ${email}")
+      logger.warn(`Password reset requested for non-existent email: ${email}`);
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Generate a 6-digit numeric verification code
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const hashedVerificationToken = bcrypt.hashSync(verificationCode, 10);
+
+    user.verificationToken = hashedVerificationToken;
+    user.verificationTokenExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes expiry
+    await user.save();
+    console.log("user saved aafter verification mail sent")
+
+    // Send verification email
+    await sendVerificationEmail(user.email, verificationCode);
+
+    logger.info(`Password reset verification code sent to ${email}`);
+    res.status(200).json({ 
+      message: 'Verification code sent to your email. Please check your inbox.' 
+    });
+  } catch (error) {
+    logger.error('Error in forgot password:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+
+
+export const passwordResetVerification = async(req, res)=> {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  try {
+    const { email, verificationCode } = req.body;
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      logger.warn(`Password reset verification attempted for non-existent email: ${email}`);
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Check if verification token exists and is valid
+    if (!user.verificationToken || !user.verificationTokenExpires) {
+      logger.warn(`No verification token found for user: ${email}`);
+      return res.status(400).json({ error: 'Invalid or expired verification code' });
+    }
+
+    // Check if token is expired
+    if (user.verificationTokenExpires < new Date()) {
+      logger.warn(`Expired verification token for user: ${email}`);
+      return res.status(400).json({ error: 'Verification code has expired' });
+    }
+
+    // Compare verification code
+    const isCodeValid = await bcrypt.compare(verificationCode, user.verificationToken);
+    if (!isCodeValid) {
+      logger.warn(`Invalid verification code for user: ${email}`);
+      return res.status(400).json({ error: 'Invalid verification code' });
+    }
+
+    // Verification successful - no need to clear token yet (will be cleared during password reset)
+    logger.info(`Verification code validated for user: ${email}`);
+    res.status(200).json({ 
+      message: 'Verification successful' 
+    });
+  } catch (error) {
+    logger.error('Error in verify reset code:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+
+
+
+export const resetPassword=async (req, res)=> {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  try {
+    const { email, password } = req.body;
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      logger.warn(`Password reset attempted for non-existent email: ${email}`);
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Hash new password and update user
+    const hashedPassword = await bcrypt.hash(password, 12);
+    user.password = hashedPassword;
+    user.verificationToken = undefined;
+    user.verificationTokenExpires = undefined;
+    user.isVerified = true; // Mark as verified since they completed password reset
+    await user.save();
+
+    logger.info(`Password successfully reset for user: ${email}`);
+    res.status(200).json({ 
+      message: 'Password reset successfully. You can now login with your new password.' 
+    });
+  } catch (error) {
+    logger.error('Error in reset password:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}

@@ -105,19 +105,13 @@ export const createOrder = async (req, res, next) => {
  */
 export const getOrderHistory = async (req, res, next) => {
   try {
-    const cacheKey = `${ORDER_CACHE_PREFIX}history:${req.userId}`;
-    const cachedOrders = await redisClient.get(cacheKey);
 
-    if (cachedOrders) {
-      return res.json(JSON.parse(cachedOrders));
-    }
 
     const orders = await Order.find({ user: req.userId })
       .sort({ createdAt: -1 }) // Sort by newest first
       .limit(10) // Limit to last 10 orders for history
       .populate('items.product', 'name price image'); // Populate product details for items
     
-    await redisClient.setEx(cacheKey, 600, JSON.stringify(orders)); // Cache for 10 minutes
     res.json(orders);
   } catch (err) {
     next(err);
@@ -132,12 +126,6 @@ export const getOrderHistory = async (req, res, next) => {
 export const getOrderDetails = async (req, res, next) => {
   try {
     const { orderId } = req.params;
-    const cacheKey = `${ORDER_CACHE_PREFIX}${orderId}`;
-
-    const cachedOrder = await redisClient.get(cacheKey);
-    if (cachedOrder) {
-      return res.json(JSON.parse(cachedOrder));
-    }
 
     // Find the order by ID and ensure it belongs to the authenticated user
     const order = await Order.findOne({ _id: orderId, user: req.userId }).populate('items.product', 'name price image');
@@ -146,10 +134,10 @@ export const getOrderDetails = async (req, res, next) => {
       return res.status(404).json({ error: 'Order not found' });
     }
 
-    await redisClient.setEx(cacheKey, 3600, JSON.stringify(order)); // Cache for 1 hour
     res.json(order);
   } catch (err) {
     next(err);
   }
 };
+
 

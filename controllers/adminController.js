@@ -9,6 +9,7 @@ import { fileURLToPath } from 'url'; // For ES Modules path resolution
 const PRODUCTS_CACHE_KEY = 'products'; 
 const USERS_CACHE_KEY = 'users'; // New cache key for all users
 
+const ORDER_CACHE_PREFIX = 'order:'; // New cache prefix for individual orders
 
 // Get __dirname equivalent in ES Modules for file deletion
 const __filename = fileURLToPath(import.meta.url);
@@ -52,36 +53,50 @@ export const getDashboardStats = async (req, res, next) => {
  * @access Private/Admin
  */
 export const updateOrderStatus = async (req, res, next) => {
+  console.log('Updating order status for orderId:', );
   try {
     const { orderId } = req.params;
-    const { status } = req.body; // New status from request body
+    const { status } = req.body; // The new status for the order
+    const cacheKey = `${ORDER_CACHE_PREFIX}${orderId}`;
 
-    // Validate if the status is one of the allowed enums
-    const validStatuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({ error: 'Invalid order status provided' });
+    // Define allowed statuses based on your schema enum
+    const allowedStatuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+
+    // Input validation for the status
+    if (!status || !allowedStatuses.includes(status)) {
+      return res.status(400).json({
+        error: `Invalid status provided. Allowed statuses are: ${allowedStatuses.join(', ')}`
+      });
     }
 
-    // Find and update the order by its ID, return the updated document
-    const order = await Order.findByIdAndUpdate(
-      orderId,
-      { status },
-      { new: true, runValidators: true } // `new: true` returns updated doc, `runValidators` validates against schema
-    );
+    // Find the order by ID
+    // For updating status, it's typically an admin action, so we don't filter by req.userId
+    // If this were for a user to cancel their own order, you would add `user: req.userId`
+    const order = await Order.findById(orderId);
 
     if (!order) {
       return res.status(404).json({ error: 'Order not found' });
     }
 
-    // Invalidate the cache for this specific order, if it was cached
-    await redisClient.del(`order:${orderId}`);
-    // Also invalidate the order history cache for relevant users if necessary (though this is more complex for all users)
+    // Update the order status
+    order.status = status;
+    await order.save(); // Save the updated order to the database
 
-    res.json(order);
+    // Invalidate the cache for this specific order as its data has changed
+    await redisClient.del(cacheKey);
+
+    res.json({
+      message: `Order status updated to '${status}' successfully.`,
+      order: order // Return the updated order object
+    });
+
   } catch (err) {
+    // Pass the error to the next middleware for centralized error handling
     next(err);
   }
 };
+
+
 
 /**
  * @desc Create a new product (Admin only)
@@ -222,12 +237,8 @@ export const deleteProduct = async (req, res, next) => {
  * @access Private/Admin
  */
 export const getAllUsers = async (req, res, next) => {
+  console.log("get all user triggered ")
   try {
-    const cachedUsers = await redisClient.get(USERS_CACHE_KEY);
-
-    if (cachedUsers) {
-      return res.json({ users: JSON.parse(cachedUsers) });
-    }
 
     // Select all user fields except password and sensitive tokens
     const users = await User.find({}).select('-password -verificationToken -verificationTokenExpires');
@@ -329,9 +340,7 @@ export const deleteUser = async (req, res, next) => {
     await User.deleteOne({ _id: userId });
 
     // Invalidate the users cache
-    await redisClient.del(USERS_CACHE_KEY);
     // Invalidate any individual user cache
-    await redisClient.del(`user:${userId}`); 
 
     res.json({ message: 'User deleted successfully' });
   } catch (error) {
