@@ -88,32 +88,46 @@ export const addToCart = async (req, res, next) => {
  */
 export const updateCartItem = async (req, res, next) => {
   try {
-    const { itemId } = req.params; // The ID of the item in the `items` array, not the product ID
+    const { itemId } = req.params; // ID of the cart item
     const { quantity } = req.body;
 
-    // Validate quantity
+    // 1. Validate quantity
     if (typeof quantity !== 'number' || quantity <= 0) {
       return res.status(400).json({ error: 'Quantity must be a positive number' });
     }
 
-    let cart = await Cart.findOne({ user: req.userId });
-
+    // 2. Find user's cart
+    const cart = await Cart.findOne({ user: req.userId }).populate('items.product');
     if (!cart) {
       return res.status(404).json({ error: 'Cart not found' });
     }
 
-    // Find the specific item in the cart's items array
-    const itemToUpdate = cart.items.id(itemId); // Mongoose's .id() method for subdocuments
-
+    // 3. Find the cart item
+    const itemToUpdate = cart.items.id(itemId);
     if (!itemToUpdate) {
       return res.status(404).json({ error: 'Cart item not found' });
     }
 
-    itemToUpdate.quantity = quantity; // Update the quantity
-    
-    await cart.save(); // Save the updated cart
-    // Invalidate cache after update
+    // 4. Validate stock
+    const product = itemToUpdate.product;
+    if (!product || !product._id) {
+      return res.status(400).json({ error: 'Associated product not found' });
+    }
+
+    if (quantity > product.stock) {
+      return res.status(400).json({
+        error: `Only ${product.stock} unit(s) available in stock for "${product.name}".`
+      });
+    }
+
+    // 5. Update and save
+    itemToUpdate.quantity = quantity;
+    await cart.save();
+
+    // 6. Invalidate Redis cache
     await redisClient.del(`${CART_CACHE_PREFIX}${req.userId}`);
+
+    // 7. Return updated cart
     res.json(cart);
   } catch (err) {
     next(err);

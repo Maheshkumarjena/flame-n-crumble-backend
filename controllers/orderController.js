@@ -1,15 +1,17 @@
-import Order from '../models/Order.js';
-import Cart from '../models/Cart.js';
-import { redisClient } from '../utils/cache.js';
-import Razorpay from 'razorpay'
+import Order from "../models/Order.js";
+import Cart from "../models/Cart.js";
+import { redisClient } from "../utils/cache.js";
+import Razorpay from "razorpay";
+import Product from '../models/Product.js'; // Ensure correct import
+
 
 console.log("Razorpay Key ID:::::::::::::", process.env.RAZORPAY_KEY_ID); // Debug
-const razorpay= new Razorpay({
-  key_id:process.env.RAZORPAY_KEY_ID,
-  key_secret:process.env.RAZORPAY_KEY_SECRET
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
 
-const ORDER_CACHE_PREFIX = 'order:'; // New cache prefix for individual orders
+const ORDER_CACHE_PREFIX = "order:"; // New cache prefix for individual orders
 
 /**
  * @desc Create a new order from user's cart
@@ -22,78 +24,107 @@ export const createOrder = async (req, res, next) => {
   try {
     const { shippingAddress, paymentMethod } = req.body;
 
-    
-    // Get user's cart
-    const cart = await Cart.findOne({ user: req.userId }).populate('items.product');
+    // Get user's cart with populated products
+    const cart = await Cart.findOne({ user: req.userId }).populate("items.product");
     if (!cart || cart.items.length === 0) {
-      return res.status(400).json({ error: 'Cart is empty' });
+      return next(new Error("Cart is empty", 400));
     }
 
-    // Calculate total
-    let total = cart.items.reduce((sum, item) => {
-      // Ensure product and price exist before summing
-      return sum + (item.product ? item.product.price * item.quantity : 0);
-    }, 0);
+    let subtotal = 0;
+    const orderItemsForDb = [];
 
-    const deliveryCharge = 250;
-    total += deliveryCharge; // Add delivery charge to the total
+    // Validate stock and prepare order items
+    for (const item of cart.items) {
+      const product = item.product;
+      console.log("product at the iteration of for loop to populate orderItems for db :::::::::::::::", product); // Debug
 
-    // First, create the database order to get its _id
-    // This allows us to use the dbOrderId in Razorpay notes for linking
+      if (!product) {
+        return next(
+          new CustomError(`Product not found for item in cart. ID: ${item._id}`, 404)
+        );
+      }
+
+      if (product.stock < item.quantity) {
+        return next(
+          new CustomError(
+            `Insufficient stock for product: ${product.name}. Available: ${product.stock}, Requested: ${item.quantity}`,
+            400
+          )
+        );
+      }
+
+      subtotal += product.price * item.quantity;
+
+      orderItemsForDb.push({
+        product: product._id,
+        name: product.name,
+        image: product.image,
+        quantity: item.quantity,
+        price: product.price,
+      });
+
+    }
+    console.log("orderItemsForDb:::::::::::::::", orderItemsForDb); // Debug
+
+    const shippingPrice = 250;
+    const taxRate = 0.05;
+    const taxPrice = subtotal * taxRate;
+    const total = subtotal + shippingPrice + taxPrice;
+
+    // Create order document
     const newOrder = new Order({
       user: req.userId,
-      items: cart.items.map(item => ({
-        product: item.product._id,
-        quantity: item.quantity,
-        price: item.product.price // Store the price at the time of order
-      })),
-      total, // This total now includes delivery charge
+      items: orderItemsForDb,
       shippingAddress,
       paymentMethod,
-      deliveryCharge // Store delivery charge in the order
+      shippingPrice,
+      taxPrice,
+      total,
+      status: "pending",
     });
 
-    
-    await newOrder.save(); // Save to get the _id
+    await newOrder.save();
+
+    // Deduct stock for each product
+    for (const item of cart.items) {
+      await Product.findByIdAndUpdate(
+        item.product._id,
+        { $inc: { stock: -item.quantity } },
+        { new: true }
+      );
+
+
+    }
 
     // Create Razorpay order
     const order = await razorpay.orders.create({
-      amount: Math.round(total * 100), // Razorpay expects amount in paise (100 * INR)
+      amount: Math.round(total * 100), // Razorpay requires amount in paise
       currency: "INR",
-      receipt: `receipt_${newOrder._id.toString()}`, // Use newOrder._id as part of the receipt
+      receipt: `receipt_${newOrder._id.toString()}`,
       notes: {
-        dbOrderId: newOrder._id.toString(), // Link to your internal order ID
-        userId: req.userId.toString(),      // Optionally add user ID
-        // You could also add a summary or a list of product IDs if needed, e.g.:
-        // productNames: cart.items.map(item => item.product.name).join(', '),
-        // productIds: cart.items.map(item => item.product._id.toString()).join(',')
+        dbOrderId: newOrder._id.toString(),
+        userId: req.userId.toString(),
       },
     });
 
-    console.log("Razorpay Order Created:", order);
-    
-
-    // You might want to update the order with the Razorpay order ID here
-    newOrder.razorpayOrderId = order.id; // Assuming you have a field for this in your Order model
+    // Save Razorpay order ID
+    newOrder.razorpayOrderId = order.id;
     await newOrder.save();
 
-    // Clear cart after successful order creation
+    // Clear cart
     await Cart.deleteOne({ user: req.userId });
-    await redisClient.del(`cart:${req.userId}`); // Invalidate user's cart cache
-    
-    // Invalidate any order history cache for this user as a new order was added
+    await redisClient.del(`cart:${req.userId}`);
     await redisClient.del(`${ORDER_CACHE_PREFIX}history:${req.userId}`);
 
     res.status(201).json({
-      orderId: order.id,        // Razorpay order ID
-      amount: order.amount,     // Amount from Razorpay (in paise)
+      orderId: order.id,
+      amount: order.amount,
       currency: order.currency,
-      dbOrderId: newOrder._id,  // Your database order ID
-      totalAmount: total        // Total amount in your currency (INR)
+      dbOrderId: newOrder._id,
+      totalAmount: total,
     });
-
   } catch (err) {
-    console.error("Error creating order:", err); // Log the error for debugging
+    console.error("Error creating order:", err);
     next(err);
   }
 };
@@ -105,13 +136,11 @@ export const createOrder = async (req, res, next) => {
  */
 export const getOrderHistory = async (req, res, next) => {
   try {
-
-
     const orders = await Order.find({ user: req.userId })
       .sort({ createdAt: -1 }) // Sort by newest first
       .limit(10) // Limit to last 10 orders for history
-      .populate('items.product', 'name price image'); // Populate product details for items
-    
+      .populate("items.product", "name price image"); // Populate product details for items
+
     res.json(orders);
   } catch (err) {
     next(err);
@@ -128,10 +157,13 @@ export const getOrderDetails = async (req, res, next) => {
     const { orderId } = req.params;
 
     // Find the order by ID and ensure it belongs to the authenticated user
-    const order = await Order.findOne({ _id: orderId, user: req.userId }).populate('items.product', 'name price image');
+    const order = await Order.findOne({
+      _id: orderId,
+      user: req.userId,
+    }).populate("items.product", "name price image");
 
     if (!order) {
-      return res.status(404).json({ error: 'Order not found' });
+      return res.status(404).json({ error: "Order not found" });
     }
 
     res.json(order);
@@ -139,5 +171,3 @@ export const getOrderDetails = async (req, res, next) => {
     next(err);
   }
 };
-
-
