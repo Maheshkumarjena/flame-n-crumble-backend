@@ -198,7 +198,7 @@ export const sendOrderConfirmationEmail = async (order) => {
 
     <!-- CTA -->
     <div style="text-align: center; margin: 30px 0;">
-      <a href="${env.CLIENT_URL}/account" style="background: #fb7185; color: white; text-decoration: none; padding: 12px 24px; border-radius: 50px; font-weight: 500; display: inline-block; transition: all 0.3s ease;" 
+      <a href="${env.CLIENT_URL}/orders/${order._id}" style="background: #fb7185; color: white; text-decoration: none; padding: 12px 24px; border-radius: 50px; font-weight: 500; display: inline-block; transition: all 0.3s ease;" 
          onmouseover="this.style.background='#e11d48'" 
          onmouseout="this.style.background='#fb7185'">
         View Your Order

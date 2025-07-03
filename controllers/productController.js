@@ -5,18 +5,75 @@ import mongoose from 'mongoose';
 const PRODUCTS_CACHE_KEY = 'products';
 
 // Existing controller
+
+const PRODUCTS_CACHE_TTL = 600; // 10 minutes
+
 export const getProducts = async (req, res, next) => {
   try {
-    const cachedProducts = await redisClient.get(PRODUCTS_CACHE_KEY);
-    if (cachedProducts) return res.json(JSON.parse(cachedProducts));
+    const {
+      page = 1,
+      limit = 9,
+      category,
+      inStock,
+      isFeatured,
+      sortBy = 'default',
+    } = req.query;
 
-    const products = await Product.find().lean();
-    await redisClient.setEx(PRODUCTS_CACHE_KEY, 600, JSON.stringify(products));
-    res.json(products);
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Build MongoDB query
+    const query = {};
+    if (category) query.category = category.toLowerCase();
+    if (inStock === 'true') query.stock = { $gt: 0 };
+    if (isFeatured === 'true') query.isFeatured = true;
+
+    // Build sorting logic
+    const sortOptions = (() => {
+      switch (sortBy) {
+        case 'price-asc':
+          return { price: 1 };
+        case 'price-desc':
+          return { price: -1 };
+        case 'newest':
+          return { createdAt: -1 };
+        default:
+          return { name: 1 }; // alphabetical
+      }
+    })();
+
+    // Generate a dynamic cache key based on filters
+    const cacheKey = `products:${pageNum}:${limitNum}:${category || 'all'}:${inStock}:${isFeatured}:${sortBy}`;
+
+    // Try to get from cache
+    const cached = await redisClient.get(cacheKey);
+    if (cached) {
+      return res.json(JSON.parse(cached));
+    }
+
+    // DB query
+    const [products, total] = await Promise.all([
+      Product.find(query)
+        .sort(sortOptions)
+        .skip(skip)
+        .limit(limitNum)
+        .lean(),
+      Product.countDocuments(query),
+    ]);
+
+    const response = {
+      products,
+      total,
+    };
+
+    await redisClient.setEx(cacheKey, PRODUCTS_CACHE_TTL, JSON.stringify(response));
+    res.json(response);
   } catch (err) {
     next(err);
   }
 };
+
 
 export const getBatchProducts = async (req, res, next) => {
   console.log('--- getBatchProducts function started ---');
