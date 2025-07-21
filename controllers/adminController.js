@@ -1,7 +1,7 @@
 import Order from '../models/Order.js';
-import Product from '../models/Product.js';
 import User from '../models/User.js';
-import { redisClient } from '../utils/cache.js';
+import { redisClient, clearAllProductRelatedCache } from '../utils/cache.js';
+import Product from '../models/Product.js';
 import fs from 'fs'; // For file system operations (deleting old images)
 import path from 'path'; // For path manipulation
 import { fileURLToPath } from 'url'; // For ES Modules path resolution
@@ -124,8 +124,8 @@ export const createProduct = async (req, res, next) => {
     console.log('Creating product---------------------------->', product);
     await product.save();
     
-    // Invalidate the cache for all products so the new product appears
-    await redisClient.del(PRODUCTS_CACHE_KEY); 
+    // Clear all product-related cache keys to ensure fresh data
+    await clearAllProductRelatedCache();
     res.status(201).json(product); // Respond with the newly created product
   } catch (err) {
     // If there's an error and a file was uploaded, delete it to prevent orphaned files
@@ -182,8 +182,8 @@ export const updateProduct = async (req, res, next) => {
     await product.save(); // Save the updated product
     console.log('Product updated:', product);
     
-    // Invalidate the cache for all products as a product was modified
-    await redisClient.del(PRODUCTS_CACHE_KEY); 
+    // Clear all product-related cache keys to ensure fresh data
+    await clearAllProductRelatedCache();
     res.json(product); // Respond with the updated product
   } catch (err) {
     // If there's an error during the update process and a new file was uploaded, delete it
@@ -222,8 +222,8 @@ export const deleteProduct = async (req, res, next) => {
       });
     }
 
-    // Invalidate the cache for all products as a product was deleted
-    await redisClient.del(PRODUCTS_CACHE_KEY); 
+    // Clear all product-related cache keys to ensure fresh data
+    await clearAllProductRelatedCache();
     res.json({ message: 'Product deleted successfully' }); // Respond with a success message
   } catch (err) {
     next(err);

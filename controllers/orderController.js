@@ -1,6 +1,6 @@
 import Order from "../models/Order.js";
 import Cart from "../models/Cart.js";
-import { redisClient } from "../utils/cache.js";
+import { redisClient, clearAllProductRelatedCache } from "../utils/cache.js";
 import Razorpay from "razorpay";
 import Product from '../models/Product.js'; // Ensure correct import
 
@@ -92,9 +92,10 @@ export const createOrder = async (req, res, next) => {
         { $inc: { stock: -item.quantity } },
         { new: true }
       );
-
-
     }
+
+    // Clear product cache since stock has been modified
+    await clearAllProductRelatedCache();
 
     // Create Razorpay order
     const order = await razorpay.orders.create({

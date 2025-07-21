@@ -9,7 +9,7 @@ import { sendOrderConfirmationEmail } from '../utils/mailer.js';
  * @access Private
  */
 export const verifyPayment = async (req, res, next) => {
-  console.log('Entering verifyPayment function.');
+  console.log('Entering verifyPayment function.===================================================================>');
   try {
     const { razorpay_payment_id, razorpay_order_id, razorpay_signature} = req.body;
     const orderId = req.body.dbOrderId;
