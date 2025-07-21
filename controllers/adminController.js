@@ -2,19 +2,12 @@ import Order from '../models/Order.js';
 import User from '../models/User.js';
 import { redisClient, clearAllProductRelatedCache } from '../utils/cache.js';
 import Product from '../models/Product.js';
-import fs from 'fs'; // For file system operations (deleting old images)
-import path from 'path'; // For path manipulation
-import { fileURLToPath } from 'url'; // For ES Modules path resolution
+import fs from 'fs';
+import path from 'path';
 
-const PRODUCTS_CACHE_KEY = 'products'; 
-const USERS_CACHE_KEY = 'users'; // New cache key for all users
-
-const ORDER_CACHE_PREFIX = 'order:'; // New cache prefix for individual orders
-
-// Get __dirname equivalent in ES Modules for file deletion
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const PUBLIC_IMAGES_DIR = path.join(__dirname, '../public/images');
+const PUBLIC_IMAGES_DIR = 'public/images';
+const PRODUCTS_CACHE_KEY = 'products';
+const USERS_CACHE_KEY = 'users';
 
 /**
  * @desc Get dashboard statistics for admin
@@ -53,11 +46,10 @@ export const getDashboardStats = async (req, res, next) => {
  * @access Private/Admin
  */
 export const updateOrderStatus = async (req, res, next) => {
-  console.log('Updating order status for orderId:', );
   try {
     const { orderId } = req.params;
     const { status } = req.body; // The new status for the order
-    const cacheKey = `${ORDER_CACHE_PREFIX}${orderId}`;
+    const cacheKey = `order:${orderId}`;
 
     // Define allowed statuses based on your schema enum
     const allowedStatuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
@@ -108,8 +100,6 @@ export const createProduct = async (req, res, next) => {
     // Multer will populate req.body with text fields and req.file with file info
     const { name, description, price, category, stock, bestseller, isNew , image } = req.body;
 
-    console.log('req.body=======================================>', req.body);
-    console.log("description at createProduct:", description);
     const product = new Product({
       name,
       description,
@@ -121,11 +111,11 @@ export const createProduct = async (req, res, next) => {
       isNew: isNew == true,           // Convert string 'true'/'false' to boolean
     });
 
-    console.log('Creating product---------------------------->', product);
     await product.save();
     
     // Clear all product-related cache keys to ensure fresh data
     await clearAllProductRelatedCache();
+    
     res.status(201).json(product); // Respond with the newly created product
   } catch (err) {
     // If there's an error and a file was uploaded, delete it to prevent orphaned files
@@ -145,13 +135,11 @@ export const createProduct = async (req, res, next) => {
  */
 export const updateProduct = async (req, res, next) => {
   try {
-    console.log('update product called');
     const { productId } = req.params;
     // req.body contains the updated fields (text fields parsed by multer)
     // req.file contains the new image file (if uploaded)
     const { name, description, price, category, stock, bestseller, isNew, image } = req.body; // 'image' here refers to the *existing* path sent from frontend
 
-    console.log('req.body:', req.body);
     const product = await Product.findById(productId);
 
     if (!product) {
@@ -180,7 +168,6 @@ export const updateProduct = async (req, res, next) => {
     // product.image retains its value (from DB or `existingImagePath` if it was sent).
 
     await product.save(); // Save the updated product
-    console.log('Product updated:', product);
     
     // Clear all product-related cache keys to ensure fresh data
     await clearAllProductRelatedCache();
@@ -237,7 +224,6 @@ export const deleteProduct = async (req, res, next) => {
  * @access Private/Admin
  */
 export const getAllUsers = async (req, res, next) => {
-  console.log("get all user triggered ")
   try {
 
     // Select all user fields except password and sensitive tokens
@@ -261,7 +247,6 @@ export const getAllUsers = async (req, res, next) => {
 export const updateUserRole = async (req, res, next) => {
   try {
 
-    console.log("request body====================",req.body)
     const { userId } = req.params;
     const { role } = req.body;
 
@@ -313,8 +298,6 @@ export const updateUserRole = async (req, res, next) => {
  * @access Private/Admin
  */
 export const deleteUser = async (req, res, next) => {
-  console.log('console log of request',req.body)
-
   try {
     const { userId } = req.params;
 

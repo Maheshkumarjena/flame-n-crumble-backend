@@ -21,13 +21,18 @@ console.log(result)  // >>> bar
 // Function to clear all product-related cache keys
 export const clearProductCache = async () => {
   try {
-    // Get all keys that match the pattern 'products:*'
-    const keys = await client.keys('products:*');
-    if (keys.length > 0) {
-      await client.del(keys);
-      console.log(`Cleared ${keys.length} product cache keys:`, keys);
-    } else {
-      console.log('No product cache keys found to clear');
+    // Get all keys that match various product-related patterns
+    const patterns = ['products:*', 'product:*'];
+    let allKeys = [];
+    
+    for (const pattern of patterns) {
+      const keys = await client.keys(pattern);
+      allKeys = allKeys.concat(keys);
+    }
+    
+    if (allKeys.length > 0) {
+      await client.del(allKeys);
+      console.log(`Cleared ${allKeys.length} product cache keys`);
     }
   } catch (error) {
     console.error('Error clearing product cache:', error);
@@ -41,9 +46,7 @@ export const clearCartCache = async () => {
     const keys = await client.keys('cart:*');
     if (keys.length > 0) {
       await client.del(keys);
-      console.log(`Cleared ${keys.length} cart cache keys:`, keys);
-    } else {
-      console.log('No cart cache keys found to clear');
+      console.log(`Cleared ${keys.length} cart cache keys`);
     }
   } catch (error) {
     console.error('Error clearing cart cache:', error);
@@ -57,9 +60,7 @@ export const clearWishlistCache = async () => {
     const keys = await client.keys('wishlist:*');
     if (keys.length > 0) {
       await client.del(keys);
-      console.log(`Cleared ${keys.length} wishlist cache keys:`, keys);
-    } else {
-      console.log('No wishlist cache keys found to clear');
+      console.log(`Cleared ${keys.length} wishlist cache keys`);
     }
   } catch (error) {
     console.error('Error clearing wishlist cache:', error);
@@ -69,7 +70,6 @@ export const clearWishlistCache = async () => {
 // Function to clear all related caches when products are modified
 export const clearAllProductRelatedCache = async () => {
   try {
-    console.log('Starting to clear all product-related cache...');
     await Promise.all([
       clearProductCache(),
       clearCartCache(),
