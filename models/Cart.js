@@ -10,4 +10,7 @@ const cartSchema = new mongoose.Schema({
   items: [cartItemSchema],
 });
 
+// Indexes for faster queries
+cartSchema.index({ user: 1 });
+
 export default mongoose.model('Cart', cartSchema);

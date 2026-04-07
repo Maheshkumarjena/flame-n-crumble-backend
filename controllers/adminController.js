@@ -16,6 +16,14 @@ const USERS_CACHE_KEY = 'users';
  */
 export const getDashboardStats = async (req, res, next) => {
   try {
+    const CACHE_KEY = 'dashboard:stats';
+    
+    // Check cache first - dashboard stats don't need real-time updates
+    const cachedStats = await redisClient.get(CACHE_KEY);
+    if (cachedStats) {
+      return res.json(JSON.parse(cachedStats));
+    }
+
     // Fetch counts of total orders, products, and users concurrently
     const [totalOrders, totalProducts, totalUsers] = await Promise.all([
       Order.countDocuments(),
@@ -29,12 +37,17 @@ export const getDashboardStats = async (req, res, next) => {
       .limit(5)
       .populate('user', 'name email'); // Populate only name and email for the user
 
-    res.json({
+    const stats = {
       totalOrders,
       totalProducts,
       totalUsers,
       recentOrders
-    });
+    };
+
+    // Cache for 5 minutes (300 seconds) - dashboard doesn't need real-time data
+    await redisClient.setEx(CACHE_KEY, 300, JSON.stringify(stats));
+
+    res.json(stats);
   } catch (err) {
     next(err);
   }
@@ -220,22 +233,51 @@ export const deleteProduct = async (req, res, next) => {
 
 /**
  * @desc Get all users (Admin only)
- * @route GET /api/admin/users
+ * @route GET /api/admin/users?page=1&limit=20
  * @access Private/Admin
  */
 export const getAllUsers = async (req, res, next) => {
   try {
+    // Pagination parameters
+    const limit = Math.min(parseInt(req.query.limit) || 20, 100); // Max 100 per page
+    const page = Math.max(parseInt(req.query.page) || 1, 1);
+    const skip = (page - 1) * limit;
 
-    // Select all user fields except password and sensitive tokens
-    const users = await User.find({}).select('-password -verificationToken -verificationTokenExpires');
+    // Get total count
+    const total = await User.countDocuments({});
     
-    // Cache the users for a reasonable time (e.g., 5 minutes = 300 seconds)
-    await redisClient.setEx(USERS_CACHE_KEY, 300, JSON.stringify(users));
+    // Check cache first
+    const cacheKey = `${USERS_CACHE_KEY}:page:${page}:limit:${limit}`;
+    const cachedUsers = await redisClient.get(cacheKey);
+    
+    if (cachedUsers) {
+      return res.json(JSON.parse(cachedUsers));
+    }
 
-    res.json({ users });
+    // Fetch paginated users
+    const users = await User.find({})
+      .select('-password -verificationToken -verificationTokenExpires')
+      .skip(skip)
+      .limit(limit)
+      .sort({ createdAt: -1 });
+
+    const response = {
+      users,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    };
+
+    // Cache the results for 5 minutes
+    await redisClient.setEx(cacheKey, 300, JSON.stringify(response));
+
+    res.json(response);
   } catch (error) {
     console.error('Error fetching all users:', error);
-    next(error); // Pass error to the error handling middleware
+    next(error);
   }
 };
 

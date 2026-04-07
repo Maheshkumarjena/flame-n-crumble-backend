@@ -85,13 +85,16 @@ export const createOrder = async (req, res, next) => {
 
     await newOrder.save();
 
-    // Deduct stock for each product
-    for (const item of cart.items) {
-      await Product.findByIdAndUpdate(
-        item.product._id,
-        { $inc: { stock: -item.quantity } },
-        { new: true }
-      );
+    // Deduct stock for all products using bulk operations (prevents N+1 queries)
+    const bulkOps = cart.items.map(item => ({
+      updateOne: {
+        filter: { _id: item.product._id },
+        update: { $inc: { stock: -item.quantity } }
+      }
+    }));
+    
+    if (bulkOps.length > 0) {
+      await Product.bulkWrite(bulkOps);
     }
 
     // Clear product cache since stock has been modified
@@ -137,12 +140,29 @@ export const createOrder = async (req, res, next) => {
  */
 export const getOrderHistory = async (req, res, next) => {
   try {
-    const orders = await Order.find({ user: req.userId })
-      .sort({ createdAt: -1 }) // Sort by newest first
-      .limit(10) // Limit to last 10 orders for history
-      .populate("items.product", "name price image"); // Populate product details for items
+    // Pagination parameters
+    const limit = Math.min(parseInt(req.query.limit) || 10, 100); // Max 100 per page
+    const page = Math.max(parseInt(req.query.page) || 1, 1);
+    const skip = (page - 1) * limit;
 
-    res.json(orders);
+    // Get total count for pagination metadata
+    const total = await Order.countDocuments({ user: req.userId });
+    
+    const orders = await Order.find({ user: req.userId })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .populate("items.product", "name price image");
+
+    res.json({
+      orders,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
   } catch (err) {
     next(err);
   }

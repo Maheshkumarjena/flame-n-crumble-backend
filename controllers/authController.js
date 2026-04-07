@@ -144,9 +144,11 @@ export const login = async (req, res, next) => {
         .json({ error: "Please verify your email to log in." });
     }
 
-    const token = jwt.sign({ userId: user._id }, env.JWT_SECRET, {
-      expiresIn: "1d",
-    });
+    const token = jwt.sign(
+      { userId: user._id, role: user.role }, 
+      env.JWT_SECRET, 
+      { expiresIn: "1d" }
+    );
 
     logger.info(`JWT token created for user ${email}: ${token}`);
     const isProduction = env.NODE_ENV === "production";
@@ -242,10 +244,12 @@ export const googleLogin = async (req, res, next) => {
       await user.save();
     }
 
-    // Generate JWT token for the user
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
-      expiresIn: "1d",
-    }); // Using process.env directly for example
+    // Generate JWT token for the user with role included
+    const token = jwt.sign(
+      { userId: user._id, role: user.role }, 
+      process.env.JWT_SECRET, 
+      { expiresIn: "1d" }
+    );
     console.log("Token created:", token);
 
     // Set the token as a cookie

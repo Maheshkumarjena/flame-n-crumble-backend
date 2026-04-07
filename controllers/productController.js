@@ -86,13 +86,15 @@ export const getBatchProducts = async (req, res, next) => {
       });
     }
 
+    // Enforce size limit - prevent abuse by limiting batch size
+    if (productIds.length === 0 || productIds.length > 100) {
+      return res.status(400).json({
+        error: `Invalid batch size. Must provide between 1 and 100 product IDs. Received: ${productIds.length}`
+      });
+    }
+
     // Validate each ID is a valid MongoDB ObjectId
-    const invalidIds = productIds.filter(
-      id => {
-        const isValid = mongoose.Types.ObjectId.isValid(id._id);
-        return !isValid;
-      }
-    );
+    const invalidIds = productIds.filter(id => !mongoose.Types.ObjectId.isValid(id));
 
     if (invalidIds.length > 0) {
       return res.status(400).json({
@@ -112,7 +114,7 @@ export const getBatchProducts = async (req, res, next) => {
       return res.json(JSON.parse(cachedBatch));
     }
 
-    // Fetch from DB if not cached
+    // Fetch from DB if not cached - use lean() for performance
     const products = await Product.find(
       { _id: { $in: productIds } },
       {

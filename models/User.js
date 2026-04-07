@@ -20,7 +20,8 @@ const userSchema = new mongoose.Schema({
 
 // Indexes for faster queries
 userSchema.index({ email: 1 });
-userSchema.index({ verificationToken: 1 }); // New index for faster token lookups
+// Sparse index for verification token (only on unverified users)
+userSchema.index({ verificationToken: 1, isVerified: 1 }, { sparse: true });
 
 // Method to compare hashed verification token
 userSchema.methods.compareVerificationToken = async function(candidateToken) {

@@ -12,7 +12,11 @@ const productSchema = new mongoose.Schema({
   isFeatured: { type: Boolean, default: false },
 });
 
-// Indexes
+// Indexes for query optimization
 productSchema.index({ category: 1, isFeatured: 1 });
+productSchema.index({ createdAt: -1 });  // For sorting by newest
+productSchema.index({ price: 1 });       // For price filtering
+productSchema.index({ stock: 1 });       // For stock availability checks
+productSchema.index({ name: 'text' });   // For full-text search
 
 export default mongoose.model('Product', productSchema);
