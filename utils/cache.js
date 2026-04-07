@@ -102,7 +102,9 @@ export const clearWishlistCache = async () => {
     const keys = await client.keys('wishlist:*');
     const cleared = await scanAndDeleteKeys('wishlist:*');
     if (cleared > 0) {
-      console.log(`Cleared ${cleared
+      console.log(`Cleared ${cleared} wishlist entries.`);
+    }
+  } catch (error) {
     console.error('Error clearing wishlist cache:', error);
   }
 };
