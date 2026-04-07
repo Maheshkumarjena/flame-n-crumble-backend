@@ -1,13 +1,9 @@
 
 import { createClient } from 'redis';
+import { env } from '../config/env.js';
 
 const client = createClient({
-    username: 'default',
-    password: 'jXRbhHcwUz9IwtNvP0JDiLYqM0wSLirc',
-    socket: {
-        host: 'redis-19035.crce179.ap-south-1-1.ec2.redns.redis-cloud.com',
-        port: 19035
-    }
+    url: env.REDIS_URL
 });
 
 client.on('error', err => console.log('Redis Client Error', err));
